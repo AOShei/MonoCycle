@@ -120,4 +120,4 @@ Free software in the proper sense — read it, modify it, ship it, distribute it
 
 **Andrew O'Shei** — electronic musician, hardware-sampler enthusiast, and the builder behind [Shei Designs](https://github.com/AOShei). MonoCycle is a tool I built while making sample packs for my Elektron Digitakt and Roland SP-404mkii. I'm releasing it because I think it will be useful for other musicians who want to turn their sampler into a powerful monosynth.
 
-If MonoCycle ends up on a track you make, I'd genuinely love to hear it. Please leave a star on github so more people can discover this app !
+If MonoCycle ends up on a track you make, I'd genuinely love to hear it. Please leave a star on github, it helps others discover the app !
