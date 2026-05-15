@@ -1,0 +1,2779 @@
+<!DOCTYPE html>
+<!--
+  MonoCycle — single-cycle waveform designer for hardware samplers.
+  Copyright (C) 2026  Andrew O'Shei  <https://github.com/AOShei>
+
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, version 3.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MONOCYCLE — single-cycle waveform designer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0c0820;
+  --bg-deep:#060414;
+  --panel:#15102e;
+  --panel-2:#1d1640;
+  --border:#3d2c7a;
+  --border-lit:#6a48c8;
+  --phos:#ff2bd6;
+  --phos-dim:#d843bd;
+  --phos-deep:#5a0e4a;
+  --phos-glow:rgba(255,43,214,0.40);
+  --text:#f0e8ff;
+  --text-dim:#bba5e4;
+  --text-faint:#8775b5;
+  --red:#ff5070;
+  --amber:#ffaa55;
+  --cyan:#a060ff;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --display:'VT323',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--mono);
+  font-size:12px;
+  background:var(--bg);
+  color:var(--text);
+  overflow-x:hidden;
+  background-image:
+    radial-gradient(ellipse at 20% 0%,rgba(255,43,214,0.07),transparent 50%),
+    radial-gradient(ellipse at 80% 100%,rgba(160,96,255,0.06),transparent 60%),
+    repeating-linear-gradient(0deg,transparent 0px,transparent 2px,rgba(255,255,255,0.012) 2px,rgba(255,255,255,0.012) 3px);
+  letter-spacing:0.02em;
+}
+.app{
+  min-height:100vh;
+  display:grid;
+  grid-template-rows:auto 1fr auto auto auto;
+  padding:14px;
+  gap:10px;
+  max-width:1480px;
+  margin:0 auto;
+}
+
+/* ---------- HEADER ---------- */
+header{
+  display:flex;justify-content:space-between;align-items:flex-end;
+  border-bottom:1px solid var(--border);padding-bottom:10px;
+}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand-mark{
+  font-family:var(--display);
+  font-size:30px;line-height:0.8;color:var(--phos);
+  text-shadow:0 0 8px var(--phos-glow);
+}
+.brand-name{
+  font-family:var(--display);font-size:34px;color:var(--phos);
+  letter-spacing:0.12em;line-height:0.8;
+  text-shadow:0 0 12px var(--phos-glow);
+}
+.brand-meta{color:var(--text-dim);font-size:11px;padding-bottom:2px}
+.header-right{display:flex;gap:14px;align-items:center;font-size:11px;color:var(--text-dim)}
+.header-meta{display:flex;gap:6px;align-items:center}
+.led{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--phos-deep);
+  box-shadow:inset 0 0 2px #000;
+  transition:background 0.1s;
+}
+.led.active{background:var(--phos);box-shadow:0 0 8px var(--phos),inset 0 0 2px rgba(0,0,0,0.4)}
+.led.red{background:#3a1c1c}
+.led.red.active{background:var(--red);box-shadow:0 0 8px var(--red),inset 0 0 2px rgba(0,0,0,0.4)}
+
+/* ---------- SCOPE ---------- */
+.scope-wrap{
+  position:relative;
+  background:#000;
+  border:1px solid var(--border);
+  border-radius:2px;
+  overflow:hidden;
+  min-height:280px;
+}
+.scope-wrap::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0px,transparent 2px,rgba(255,43,214,0.025) 2px,rgba(255,43,214,0.025) 3px);
+  z-index:3;
+}
+#scope{display:block;width:100%;height:100%;position:absolute;inset:0}
+.scope-overlay{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:10px 14px;pointer-events:none;z-index:4;
+  color:var(--phos-dim);font-size:11px;
+}
+.scope-top,.scope-bot{display:flex;justify-content:space-between;gap:20px}
+.scope-tag{
+  display:flex;gap:8px;align-items:center;
+  text-shadow:0 0 4px rgba(255,43,214,0.5);
+}
+.scope-tag .val{color:var(--phos);font-family:var(--display);font-size:16px;line-height:0.8;letter-spacing:0.05em}
+.scope-corner{
+  font-family:var(--display);font-size:14px;color:var(--phos);
+  text-shadow:0 0 6px var(--phos-glow);
+  letter-spacing:0.1em;
+}
+
+/* ---------- CONTROL GRID ---------- */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  align-items:stretch;
+}
+.panel{
+  background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+  border:1px solid var(--border);
+  border-radius:2px;
+  display:flex;flex-direction:column;
+  position:relative;
+}
+.panel-head{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 10px;
+  border-bottom:1px solid var(--border);
+  background:rgba(255,43,214,0.03);
+}
+.panel-title{
+  font-family:var(--display);font-size:16px;
+  color:var(--phos);letter-spacing:0.15em;
+  text-shadow:0 0 6px var(--phos-glow);
+}
+.panel-id{color:var(--text-faint);font-size:10px;letter-spacing:0.2em}
+.panel-body{padding:12px 10px;display:flex;flex-direction:column;gap:10px;flex:1}
+
+/* ---------- CONTROLS ---------- */
+.row{display:flex;flex-direction:column;gap:4px}
+.row-label{
+  display:flex;justify-content:space-between;align-items:baseline;
+  font-size:10px;color:var(--text-dim);letter-spacing:0.15em;text-transform:uppercase;
+}
+.row-label .val{
+  color:var(--phos);font-family:var(--display);font-size:15px;
+  text-shadow:0 0 4px var(--phos-glow);line-height:0.8;letter-spacing:0.05em;
+}
+.row-label.disabled{color:var(--text-faint)}
+.row-label.disabled .val{color:var(--text-faint);text-shadow:none}
+
+/* slider */
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:14px;
+  background:transparent;
+  cursor:pointer;
+  outline:none;
+}
+input[type=range]::-webkit-slider-runnable-track{
+  height:4px;background:var(--bg-deep);
+  border:1px solid var(--border);border-radius:1px;
+  background-image:repeating-linear-gradient(90deg,transparent 0,transparent 9.5%,rgba(255,43,214,0.15) 9.5%,rgba(255,43,214,0.15) 10%);
+}
+input[type=range]::-moz-range-track{
+  height:4px;background:var(--bg-deep);
+  border:1px solid var(--border);border-radius:1px;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:10px;height:14px;margin-top:-6px;
+  background:var(--phos);
+  border-radius:1px;cursor:grab;
+  box-shadow:0 0 6px var(--phos-glow);
+  border:1px solid #000;
+}
+input[type=range]::-moz-range-thumb{
+  width:8px;height:14px;
+  background:var(--phos);
+  border-radius:1px;cursor:grab;
+  box-shadow:0 0 6px var(--phos-glow);
+  border:1px solid #000;
+}
+input[type=range]:disabled::-webkit-slider-thumb{background:var(--phos-deep);box-shadow:none;cursor:not-allowed}
+input[type=range]:disabled::-moz-range-thumb{background:var(--phos-deep);box-shadow:none}
+input[type=range]:disabled{opacity:0.4}
+
+/* wave-type grid */
+.wave-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:3px;
+  margin-bottom:2px;
+}
+.wave-btn{
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  color:var(--text-dim);
+  padding:6px 4px;
+  font-family:var(--mono);font-size:10px;letter-spacing:0.1em;
+  cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  transition:all 0.1s;
+}
+.wave-btn:hover{border-color:var(--border-lit);color:var(--text)}
+.wave-btn.active{
+  background:rgba(255,43,214,0.1);
+  border-color:var(--phos-dim);
+  color:var(--phos);
+  text-shadow:0 0 4px var(--phos-glow);
+}
+.wave-btn svg{width:24px;height:14px}
+.wave-btn .wsym{stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:square;stroke-linejoin:miter}
+
+/* mode-buttons row */
+.mode-row{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:2px;
+}
+.mode-btn{
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  color:var(--text-dim);
+  padding:5px 2px;
+  font-family:var(--mono);font-size:10px;letter-spacing:0.05em;
+  cursor:pointer;transition:all 0.1s;
+}
+.mode-btn:hover{border-color:var(--border-lit);color:var(--text)}
+.mode-btn.active{
+  background:rgba(255,43,214,0.12);
+  border-color:var(--phos-dim);color:var(--phos);
+  text-shadow:0 0 4px var(--phos-glow);
+}
+
+/* ---------- WAVETABLE ---------- */
+.wt-wrap{display:grid;grid-template-columns:1fr 200px;gap:10px}
+
+/* ---------- MODAL ---------- */
+.modal-overlay{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.78);
+  z-index:100;
+  display:none;
+  align-items:center;justify-content:center;
+  padding:20px;
+  animation:fadeIn 0.12s ease-out;
+}
+.modal-overlay.open{display:flex}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-panel{
+  background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+  border:1px solid var(--phos-dim);
+  border-radius:2px;
+  box-shadow:0 0 50px rgba(255,43,214,0.18),0 12px 60px rgba(0,0,0,0.9);
+  width:100%;max-width:920px;
+  max-height:92vh;
+  display:flex;flex-direction:column;
+  position:relative;
+  overflow:hidden;
+}
+.modal-close{
+  position:absolute;top:8px;right:8px;
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  color:var(--text-dim);
+  width:26px;height:26px;
+  font-size:15px;line-height:1;
+  cursor:pointer;font-family:var(--mono);
+  z-index:2;
+  transition:all 0.1s;
+}
+.modal-close:hover{color:var(--red);border-color:var(--red)}
+
+/* ---------- ABOUT MODAL ---------- */
+.about-panel{max-width:480px}
+.about-body{
+  padding:34px 30px 26px;
+  display:flex;flex-direction:column;gap:18px;
+}
+.about-banner{
+  display:flex;align-items:center;gap:14px;
+  padding-bottom:14px;
+  border-bottom:1px dashed var(--border);
+}
+.about-banner .brand-mark{font-size:42px;line-height:0.8}
+.about-banner .about-brand{font-size:28px;line-height:0.85}
+.about-banner .brand-meta{font-size:11px;color:var(--text-dim);padding-top:4px}
+.about-meta{display:flex;flex-direction:column;gap:3px}
+.about-row{
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:12px;padding:5px 2px;
+  border-bottom:1px dotted var(--border);
+}
+.about-row:last-child{border-bottom:none}
+.about-row .k{color:var(--text-faint);letter-spacing:0.18em;font-size:10px}
+.about-row .v{color:var(--text);font-family:var(--mono)}
+.about-repo{
+  display:block;margin-top:4px;
+  padding:11px 14px;
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  color:var(--phos);
+  text-decoration:none;text-align:center;
+  font-size:12px;letter-spacing:0.1em;
+  transition:all 0.1s;
+}
+.about-repo:hover{
+  border-color:var(--phos);
+  background:rgba(255,43,214,0.10);
+  text-shadow:0 0 6px var(--phos-glow);
+}
+.about-notice{
+  font-size:10px;color:var(--text-dim);
+  line-height:1.55;text-align:center;
+  padding:8px 4px 2px;letter-spacing:0.03em;
+}
+.about-notice strong{color:var(--text);letter-spacing:0.08em}
+.about-notice .about-link{
+  color:var(--phos);text-decoration:none;
+  border-bottom:1px dotted var(--phos-dim);
+}
+.about-notice .about-link:hover{
+  text-shadow:0 0 6px var(--phos-glow);
+  border-bottom-color:var(--phos);
+}
+
+/* header button (opens wavetable) */
+.header-btn{
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:6px 12px;font-size:11px;
+  cursor:pointer;font-family:var(--mono);
+  letter-spacing:0.12em;
+  transition:all 0.1s;
+  display:flex;align-items:center;gap:6px;
+}
+.header-btn:hover{border-color:var(--phos-dim);color:var(--phos);text-shadow:0 0 4px var(--phos-glow)}
+.header-btn.in-use{
+  background:rgba(255,43,214,0.08);
+  border-color:var(--phos-dim);
+  color:var(--phos);
+}
+.header-btn .led-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--phos-deep);
+}
+.header-btn.in-use .led-dot{
+  background:var(--phos);
+  box-shadow:0 0 6px var(--phos-glow);
+}
+.wt-canvas-wrap{
+  position:relative;background:#000;
+  border:1px solid var(--border);border-radius:2px;
+  height:160px;overflow:hidden;
+}
+#wt-canvas{display:block;width:100%;height:100%;cursor:crosshair}
+.wt-canvas-wrap::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent 0px,transparent 2px,rgba(255,43,214,0.02) 2px,rgba(255,43,214,0.02) 3px);
+}
+.wt-corner{
+  position:absolute;top:8px;right:10px;
+  font-family:var(--display);font-size:14px;color:var(--phos);
+  text-shadow:0 0 6px var(--phos-glow);letter-spacing:0.1em;
+  pointer-events:none;
+}
+.wt-controls{display:flex;flex-direction:column;gap:4px}
+.wt-controls button{
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:6px 8px;
+  font-family:var(--mono);font-size:11px;letter-spacing:0.1em;
+  cursor:pointer;text-align:left;
+  transition:all 0.1s;
+}
+.wt-controls button:hover{
+  border-color:var(--phos-dim);color:var(--phos);
+  text-shadow:0 0 4px var(--phos-glow);
+}
+
+/* ---------- TRANSPORT ---------- */
+.transport{
+  background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+  border:1px solid var(--border);
+  border-radius:2px;
+  display:grid;
+  grid-template-columns:auto auto 1fr auto auto auto auto auto;
+  gap:14px;
+  padding:10px 14px;
+  align-items:center;
+}
+.btn-big{
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:10px 16px;
+  font-family:var(--mono);font-size:12px;letter-spacing:0.15em;font-weight:500;
+  cursor:pointer;text-transform:uppercase;
+  transition:all 0.1s;
+  display:flex;align-items:center;gap:6px;
+}
+.btn-big:hover{border-color:var(--phos-dim);color:var(--phos)}
+.btn-big.playing{
+  background:rgba(255,43,214,0.15);
+  border-color:var(--phos);color:var(--phos);
+  text-shadow:0 0 4px var(--phos-glow);
+}
+.btn-big.danger:hover{border-color:var(--red);color:var(--red)}
+.btn-big.primary{
+  background:rgba(255,43,214,0.08);
+  border-color:var(--phos-dim);color:var(--phos);
+}
+.btn-big.primary:hover{
+  background:var(--phos);color:#000;
+  text-shadow:none;
+  box-shadow:0 0 12px var(--phos-glow);
+}
+.transport-block{
+  display:flex;flex-direction:column;gap:3px;min-width:80px;
+}
+.transport-block .lbl{font-size:10px;color:var(--text-dim);letter-spacing:0.2em;text-transform:uppercase}
+.transport-block .val{
+  font-family:var(--display);font-size:18px;color:var(--phos);
+  text-shadow:0 0 6px var(--phos-glow);line-height:0.8;letter-spacing:0.08em;
+}
+.transport-block input[type=range]{margin-top:1px}
+.option-group{display:flex;gap:2px}
+.option-btn{
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  color:var(--text-dim);
+  padding:4px 8px;font-size:11px;
+  cursor:pointer;font-family:var(--mono);
+  letter-spacing:0.05em;
+}
+.option-btn:hover{color:var(--text);border-color:var(--border-lit)}
+.option-btn.active{
+  background:rgba(255,43,214,0.12);
+  border-color:var(--phos-dim);color:var(--phos);
+}
+
+/* ---- slider with C-note tick marks ---- */
+.slider-with-ticks{display:flex;flex-direction:column;gap:0}
+.slider-with-ticks input[type=range]{margin-bottom:1px}
+.tick-row{
+  position:relative;
+  display:flex;
+  justify-content:space-between;
+  font-family:var(--mono);
+  font-size:9px;
+  letter-spacing:0.08em;
+  color:var(--text-faint);
+  margin-top:0;
+  padding:0;
+  height:14px;
+}
+.tick{
+  position:relative;
+  cursor:pointer;
+  padding:3px 2px 0 2px;
+  user-select:none;
+  transition:color 0.1s;
+  text-align:center;
+  min-width:14px;
+}
+.tick::before{
+  content:"";
+  position:absolute;
+  top:-3px;
+  left:50%;
+  transform:translateX(-50%);
+  width:1px;
+  height:5px;
+  background:var(--text-faint);
+  transition:background 0.1s, box-shadow 0.1s;
+}
+.tick:hover{color:var(--text)}
+.tick:hover::before{background:var(--text)}
+.tick.current{
+  color:var(--phos);
+  text-shadow:0 0 4px var(--phos-glow);
+}
+.tick.current::before{
+  background:var(--phos);
+  box-shadow:0 0 4px var(--phos-glow);
+  height:7px;
+  top:-4px;
+}
+
+/* ---------- HEADER DROPDOWNS (presets) ---------- */
+.dropdown{position:relative}
+.dropdown-toggle{
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:6px 12px;font-size:11px;
+  cursor:pointer;font-family:var(--mono);
+  letter-spacing:0.12em;
+  transition:all 0.1s;
+  display:flex;align-items:center;gap:6px;
+}
+.dropdown-toggle:hover{border-color:var(--phos-dim);color:var(--phos);text-shadow:0 0 4px var(--phos-glow)}
+.dropdown.open .dropdown-toggle{
+  border-color:var(--phos);color:var(--phos);
+  background:rgba(255,43,214,0.10);
+  text-shadow:0 0 4px var(--phos-glow);
+}
+.dropdown-caret{font-size:10px;opacity:0.85;line-height:1}
+.dropdown-menu{
+  position:absolute;
+  top:calc(100% + 6px);right:0;
+  min-width:240px;max-height:520px;overflow-y:auto;
+  background:var(--panel);
+  border:1px solid var(--phos-dim);
+  border-radius:2px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.7),0 0 24px rgba(255,43,214,0.18);
+  padding:6px;
+  display:none;
+  z-index:30;
+}
+.dropdown.open .dropdown-menu{display:block}
+.dropdown-divider{height:1px;background:var(--border);margin:4px 2px}
+.dropdown-item{
+  display:block;width:100%;text-align:left;
+  background:transparent;
+  border:1px solid transparent;
+  color:var(--text);
+  padding:6px 10px;font-size:11px;
+  cursor:pointer;font-family:var(--mono);
+  letter-spacing:0.05em;
+  transition:all 0.08s;
+}
+.dropdown-item:hover:not(:disabled){
+  background:rgba(255,43,214,0.10);
+  border-color:var(--phos-dim);
+  color:var(--phos);
+  text-shadow:0 0 4px var(--phos-glow);
+}
+.dropdown-item:disabled{color:var(--text-faint);cursor:not-allowed}
+.dropdown-empty{
+  font-size:11px;color:var(--text-faint);
+  padding:10px;font-style:italic;text-align:center;
+  letter-spacing:0.05em;
+}
+.dropdown-save-form{
+  display:flex;gap:4px;padding:4px;
+}
+.dropdown-save-form input{
+  flex:1;min-width:0;
+  background:var(--bg-deep);
+  border:1px solid var(--phos-dim);
+  color:var(--text);
+  padding:5px 8px;font-size:11px;
+  font-family:var(--mono);letter-spacing:0.05em;
+  outline:none;
+}
+.dropdown-save-form input:focus{border-color:var(--phos);box-shadow:0 0 6px var(--phos-glow)}
+.dropdown-save-form .ds-btn{
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:5px 10px;font-size:11px;
+  font-family:var(--mono);letter-spacing:0.1em;
+  cursor:pointer;
+  transition:all 0.08s;
+}
+.dropdown-save-form .ds-btn.save{color:var(--phos);border-color:var(--phos-dim)}
+.dropdown-save-form .ds-btn.save:hover{background:rgba(255,43,214,0.12);text-shadow:0 0 4px var(--phos-glow)}
+.dropdown-save-form .ds-btn.save:disabled{
+  color:var(--text-faint);border-color:var(--border);
+  background:transparent;cursor:not-allowed;text-shadow:none;
+}
+.dropdown-save-form .ds-btn.cancel{padding:5px 8px;color:var(--text-dim)}
+.dropdown-save-form .ds-btn.cancel:hover{color:var(--red);border-color:var(--red)}
+.dropdown-preset-row{
+  display:flex;align-items:stretch;gap:2px;
+}
+.dropdown-preset-row .dropdown-item{flex:1}
+.dropdown-preset-row .dp-del{
+  background:transparent;
+  border:1px solid transparent;
+  color:var(--text-faint);
+  padding:0 8px;font-size:14px;line-height:1;
+  cursor:pointer;font-family:var(--mono);
+  transition:all 0.08s;
+}
+.dropdown-preset-row .dp-del:hover{
+  color:var(--red);border-color:var(--red);
+  background:rgba(255,80,112,0.08);
+}
+
+/* ---------- INFO BAR ---------- */
+.info-bar{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:1px;
+  background:var(--border);
+  border:1px solid var(--border);
+  border-radius:2px;
+  overflow:hidden;
+}
+.info-cell{
+  background:var(--panel);
+  padding:8px 10px;
+  display:flex;flex-direction:column;gap:2px;
+}
+.info-cell .lbl{font-size:10px;color:var(--text-dim);letter-spacing:0.15em;text-transform:uppercase}
+.info-cell .val{
+  font-family:var(--display);font-size:15px;color:var(--phos);
+  text-shadow:0 0 4px var(--phos-glow);line-height:0.9;letter-spacing:0.05em;
+}
+
+/* responsive */
+@media (max-width:1100px){
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .wt-wrap{grid-template-columns:1fr}
+  .transport{grid-template-columns:1fr 1fr;gap:10px}
+  .info-bar{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:600px){
+  .grid{grid-template-columns:1fr}
+  .info-bar{grid-template-columns:1fr 1fr}
+}
+
+/* tooltip on hover */
+.tooltip{position:relative}
+.tooltip[data-tip]:hover::after{
+  content:attr(data-tip);
+  position:absolute;left:0;top:100%;
+  background:#000;color:var(--phos);
+  border:1px solid var(--phos-dim);padding:4px 6px;
+  white-space:nowrap;font-size:10px;letter-spacing:0.1em;
+  z-index:50;pointer-events:none;margin-top:2px;
+}
+
+/* select reset */
+select{
+  background:var(--bg-deep);
+  border:1px solid var(--border);
+  color:var(--text);font-family:var(--mono);
+  padding:4px 6px;font-size:11px;letter-spacing:0.05em;
+  cursor:pointer;
+}
+select:hover{border-color:var(--border-lit)}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ====== HEADER ====== -->
+  <header>
+    <div class="brand">
+      <span class="brand-mark">◐</span>
+      <div>
+        <div class="brand-name">MONOCYCLE</div>
+        <div class="brand-meta">Single-Cycle Waveform Designer</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="dropdown" id="dd-factory">
+        <button class="dropdown-toggle" id="dd-factory-toggle">FACTORY <span class="dropdown-caret">▾</span></button>
+        <div class="dropdown-menu" id="dd-factory-menu"></div>
+      </div>
+      <div class="dropdown" id="dd-user">
+        <button class="dropdown-toggle" id="dd-user-toggle">USER <span class="dropdown-caret">▾</span></button>
+        <div class="dropdown-menu" id="dd-user-menu">
+          <!-- Populated by renderUserPresetsMenu() -->
+        </div>
+      </div>
+      <button class="header-btn" id="btn-wt-open"><span class="led-dot"></span>WAVETABLE</button>
+      <button class="header-btn" id="btn-about">ABOUT</button>
+      <div id="format-display">48000Hz · 16BIT · MONO</div>
+      <div class="header-meta"><span class="led red" id="playLed"></span>PLAY</div>
+    </div>
+  </header>
+
+  <!-- ====== SCOPE ====== -->
+  <div class="scope-wrap">
+    <canvas id="scope"></canvas>
+    <div class="scope-overlay">
+      <div class="scope-top">
+        <div class="scope-tag">CH1 <span class="val" id="scope-mode">A</span></div>
+        <div class="scope-corner">MONOCYCLE//SCOPE</div>
+      </div>
+      <div class="scope-bot">
+        <div class="scope-tag">PEAK <span class="val" id="scope-peak">1.00</span></div>
+        <div class="scope-tag">RMS <span class="val" id="scope-rms">0.71</span></div>
+        <div class="scope-tag">ZCR <span class="val" id="scope-zcr">2</span></div>
+        <div class="scope-tag">DC <span class="val" id="scope-dc">0.00</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== INFO BAR ====== -->
+  <div class="info-bar">
+    <div class="info-cell"><span class="lbl">Native Note</span><span class="val" id="info-note">C2</span></div>
+    <div class="info-cell"><span class="lbl">Fundamental</span><span class="val" id="info-freq">65.39 Hz</span></div>
+    <div class="info-cell"><span class="lbl">File Length</span><span class="val" id="info-len">15.3 ms</span></div>
+    <div class="info-cell"><span class="lbl">Samples</span><span class="val" id="info-samples">734</span></div>
+    <div class="info-cell"><span class="lbl">Filesize</span><span class="val" id="info-bytes">1.5 KB</span></div>
+  </div>
+
+  <!-- ====== CONTROL GRID ====== -->
+  <div class="grid">
+
+    <!-- OSC A -->
+    <div class="panel" id="panel-a">
+      <div class="panel-head">
+        <div class="panel-title">OSC A</div>
+        <div class="panel-id">// SOURCE</div>
+      </div>
+      <div class="panel-body">
+        <div class="wave-grid" id="wave-grid-a"></div>
+        <div class="row">
+          <div class="row-label"><span>Phase</span><span class="val" id="val-a-phase">0°</span></div>
+          <input type="range" id="a-phase" min="0" max="360" value="0" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Harmonics</span><span class="val" id="val-a-harm">64</span></div>
+          <input type="range" id="a-harm" min="1" max="128" value="64" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Symmetry</span><span class="val" id="val-a-sym">50%</span></div>
+          <input type="range" id="a-sym" min="0" max="100" value="50" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Steps</span><span class="val" id="val-a-steps">8</span></div>
+          <input type="range" id="a-steps" min="2" max="32" value="8" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Seed</span><span class="val" id="val-a-seed">7</span></div>
+          <input type="range" id="a-seed" min="0" max="99" value="7" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Level</span><span class="val" id="val-a-lvl">100%</span></div>
+          <input type="range" id="a-lvl" min="0" max="100" value="100" step="1">
+        </div>
+      </div>
+    </div>
+
+    <!-- OSC B -->
+    <div class="panel" id="panel-b">
+      <div class="panel-head">
+        <div class="panel-title">OSC B</div>
+        <div class="panel-id">// MODULATOR</div>
+      </div>
+      <div class="panel-body">
+        <div class="wave-grid" id="wave-grid-b"></div>
+        <div class="row">
+          <div class="row-label"><span>Phase</span><span class="val" id="val-b-phase">0°</span></div>
+          <input type="range" id="b-phase" min="0" max="360" value="0" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Harmonics</span><span class="val" id="val-b-harm">64</span></div>
+          <input type="range" id="b-harm" min="1" max="128" value="64" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Symmetry</span><span class="val" id="val-b-sym">50%</span></div>
+          <input type="range" id="b-sym" min="0" max="100" value="50" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Steps</span><span class="val" id="val-b-steps">8</span></div>
+          <input type="range" id="b-steps" min="2" max="32" value="8" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Ratio</span><span class="val" id="val-b-ratio">×1</span></div>
+          <input type="range" id="b-ratio" min="1" max="16" value="1" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Level</span><span class="val" id="val-b-lvl">0%</span></div>
+          <input type="range" id="b-lvl" min="0" max="100" value="0" step="1">
+        </div>
+      </div>
+    </div>
+
+    <!-- MIX + SHAPE -->
+    <div class="panel" id="panel-mix">
+      <div class="panel-head">
+        <div class="panel-title">MIX // SHAPE</div>
+        <div class="panel-id">// COMBINE</div>
+      </div>
+      <div class="panel-body">
+        <div class="row">
+          <div class="row-label"><span>Mode</span><span class="val" id="val-mix-mode">BLEND</span></div>
+          <div class="mode-row" id="mix-mode-row"></div>
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Amount</span><span class="val" id="val-mix-amt">0%</span></div>
+          <input type="range" id="mix-amt" min="0" max="100" value="0" step="1">
+        </div>
+        <hr style="border:none;border-top:1px dashed var(--border);margin:4px 0"/>
+        <div class="row">
+          <div class="row-label"><span>Wavefold</span><span class="val" id="val-sh-fold">0%</span></div>
+          <input type="range" id="sh-fold" min="0" max="100" value="0" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Drive</span><span class="val" id="val-sh-drive">0%</span></div>
+          <input type="range" id="sh-drive" min="0" max="100" value="0" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Bit Crush</span><span class="val" id="val-sh-crush">16b</span></div>
+          <input type="range" id="sh-crush" min="0" max="100" value="0" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Phase Dist</span><span class="val" id="val-sh-pd">0%</span></div>
+          <input type="range" id="sh-pd" min="0" max="100" value="0" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Normalize</span><span class="val" id="val-norm">ON</span></div>
+          <div class="option-group" style="margin-top:2px">
+            <button class="option-btn active" data-norm="1" id="norm-on">ON</button>
+            <button class="option-btn" data-norm="0" id="norm-off">OFF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FILTER -->
+    <div class="panel" id="panel-filter">
+      <div class="panel-head">
+        <div class="panel-title">FILTER</div>
+        <div class="panel-id">// PREVIEW ONLY</div>
+      </div>
+      <div class="panel-body">
+        <div class="row">
+          <div class="row-label"><span>Type</span><span class="val" id="val-filt-type">OFF</span></div>
+          <div class="mode-row" id="filter-type-row" style="grid-template-columns:repeat(5,1fr)">
+            <button class="mode-btn active" data-ft="off">OFF</button>
+            <button class="mode-btn" data-ft="lp">LP</button>
+            <button class="mode-btn" data-ft="hp">HP</button>
+            <button class="mode-btn" data-ft="bp">BP</button>
+            <button class="mode-btn" data-ft="notch">NOTCH</button>
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Cutoff</span><span class="val" id="val-cutoff">2000 Hz</span></div>
+          <input type="range" id="filt-cutoff" min="20" max="20000" value="2000" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Resonance</span><span class="val" id="val-q">1.0</span></div>
+          <input type="range" id="filt-q" min="0.1" max="30" value="1" step="0.1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>LFO Rate</span><span class="val" id="val-lforate">2.0 Hz</span></div>
+          <input type="range" id="filt-lforate" min="0.05" max="20" value="2" step="0.05">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>LFO Depth</span><span class="val" id="val-lfodepth">0%</span></div>
+          <input type="range" id="filt-lfodepth" min="0" max="100" value="0" step="1">
+        </div>
+        <div class="row">
+          <div class="row-label"><span>Drive</span><span class="val" id="val-filt-drive">0 dB</span></div>
+          <input type="range" id="filt-drive" min="0" max="24" value="0" step="0.1">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== WAVETABLE MODAL ====== -->
+  <div class="modal-overlay" id="wt-modal">
+    <div class="modal-panel">
+      <button class="modal-close" id="wt-modal-close" aria-label="Close">✕</button>
+      <div class="panel-head">
+        <div class="panel-title">WAVETABLE EDITOR</div>
+        <div class="panel-id">// DRAW · 256 POINTS · SHARED BY OSC A &amp; B</div>
+      </div>
+      <div class="panel-body">
+        <div class="wt-wrap">
+          <div class="wt-canvas-wrap" style="height:280px">
+            <canvas id="wt-canvas"></canvas>
+            <div class="wt-corner">WT//EDIT</div>
+          </div>
+          <div class="wt-controls">
+            <button id="wt-init-sine">⤳ INIT: SINE</button>
+            <button id="wt-init-saw">↘ INIT: SAW</button>
+            <button id="wt-init-sq">⊓ INIT: SQUARE</button>
+            <button id="wt-init-tri">△ INIT: TRIANGLE</button>
+            <button id="wt-init-rand">⌇ INIT: RANDOM</button>
+            <button id="wt-smooth">≈ SMOOTH</button>
+            <button id="wt-norm">↥ NORMALIZE</button>
+            <button id="wt-invert">⇅ INVERT</button>
+            <button id="wt-reverse">⇄ REVERSE</button>
+            <button id="wt-clear">✕ CLEAR (ZERO)</button>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:var(--text-dim);letter-spacing:0.1em;line-height:1.5">
+          TIP: Click+drag inside the scope to draw a custom waveform. Set OSC A or OSC B wave type to "WT" to use the wavetable as the source. Press ESC or click outside the panel to close.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== ABOUT MODAL ====== -->
+  <div class="modal-overlay" id="about-modal">
+    <div class="modal-panel about-panel">
+      <button class="modal-close" id="about-modal-close" aria-label="Close">✕</button>
+      <div class="about-body">
+        <div class="about-banner">
+          <span class="brand-mark">◐</span>
+          <div>
+            <div class="brand-name about-brand">MONOCYCLE</div>
+            <div class="brand-meta">Single-Cycle Waveform Designer</div>
+          </div>
+        </div>
+        <div class="about-meta">
+          <div class="about-row"><span class="k">VERSION</span><span class="v">0.1.0</span></div>
+          <div class="about-row"><span class="k">AUTHOR</span><span class="v">Andrew O'Shei</span></div>
+          <div class="about-row"><span class="k">ORG</span><span class="v">Shei Designs</span></div>
+          <div class="about-row"><span class="k">LICENSE</span><span class="v">GNU GPL v3</span></div>
+          <div class="about-row"><span class="k">COPYRIGHT</span><span class="v">© 2026</span></div>
+        </div>
+        <div class="about-notice">
+          This program comes with <strong>ABSOLUTELY NO WARRANTY</strong>.
+          It is free software, and you are welcome to redistribute it under the terms of the
+          <a class="about-link" href="https://www.gnu.org/licenses/gpl-3.0.html">GNU GPL v3</a>.
+        </div>
+        <a class="about-repo about-link" href="https://github.com/AOShei/MonoCycle">
+          github.com/AOShei/MonoCycle ↗
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== TRANSPORT ====== -->
+  <div class="transport">
+    <button class="btn-big" id="btn-play"><span style="font-size:15px">▶</span> PLAY</button>
+    <div class="transport-block" style="min-width:120px">
+      <div class="lbl">Volume <span style="color:var(--phos)" id="val-vol">−12dB</span></div>
+      <input type="range" id="volume" min="0" max="100" value="50" step="1">
+    </div>
+    <div class="transport-block" style="min-width:300px">
+      <div class="lbl">Tune (native &amp; preview) <span style="color:var(--phos);font-family:var(--display);font-size:15px;letter-spacing:0.05em" id="val-tune">C2</span></div>
+      <div class="slider-with-ticks">
+        <input type="range" id="tune-note" min="12" max="84" value="36" step="1">
+        <div class="tick-row" id="tune-ticks">
+          <div class="tick" data-tune="12">C0</div>
+          <div class="tick" data-tune="24">C1</div>
+          <div class="tick" data-tune="36">C2</div>
+          <div class="tick" data-tune="48">C3</div>
+          <div class="tick" data-tune="60">C4</div>
+          <div class="tick" data-tune="72">C5</div>
+          <div class="tick" data-tune="84">C6</div>
+        </div>
+      </div>
+    </div>
+    <div class="transport-block">
+      <div class="lbl">Cycles</div>
+      <div class="option-group" id="cycles-group">
+        <button class="option-btn active" data-cyc="1">×1</button>
+        <button class="option-btn" data-cyc="2">×2</button>
+        <button class="option-btn" data-cyc="4">×4</button>
+        <button class="option-btn" data-cyc="8">×8</button>
+      </div>
+    </div>
+    <div class="transport-block">
+      <div class="lbl">Bits</div>
+      <div class="option-group" id="bits-group">
+        <button class="option-btn active" data-bits="16">16</button>
+        <button class="option-btn" data-bits="24">24</button>
+      </div>
+    </div>
+    <button class="btn-big danger" id="btn-reset">RESET</button>
+    <button class="btn-big primary" id="btn-export"><span style="font-size:15px">⇩</span> EXPORT WAV</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// MONOCYCLE — Single-cycle waveform foundry
+// ============================================================
+
+'use strict';
+
+const WAVE_TYPES = [
+  { id:'sine',   name:'SINE',   sym:'M2,8 Q6,1 10,8 T18,8' },
+  { id:'tri',    name:'TRI',    sym:'M2,12 L7,2 L13,12 L18,2' },
+  { id:'saw',    name:'SAW',    sym:'M2,2 L10,12 L10,2 L18,12' },
+  { id:'ramp',   name:'RAMP',   sym:'M2,12 L10,2 L10,12 L18,2' },
+  { id:'sq',     name:'SQR',    sym:'M2,2 L6,2 L6,12 L14,12 L14,2 L18,2' },
+  { id:'stair',  name:'STAIR',  sym:'M2,12 L6,12 L6,9 L10,9 L10,5 L14,5 L14,2 L18,2' },
+  { id:'sh',     name:'S&H',    sym:'M2,8 L5,8 L5,3 L8,3 L8,11 L11,11 L11,5 L14,5 L14,9 L18,9' },
+  { id:'noise',  name:'NOISE',  sym:'M2,7 L3,3 L4,11 L5,5 L6,9 L7,2 L8,12 L9,6 L10,9 L11,4 L12,11 L13,3 L14,8 L15,5 L16,10 L17,3 L18,9' },
+  { id:'wt',     name:'WT',     sym:'M2,8 Q4,2 6,8 Q8,14 10,7 Q12,2 14,11 Q16,5 18,9' }
+];
+
+const MIX_MODES = ['BLEND','RING','AM','FM','MIN','MAX','XOR','AND','OR','FOLD'];
+
+// MIDI note names
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+function midiToName(midi){
+  const n = NOTE_NAMES[midi % 12];
+  const oct = Math.floor(midi / 12) - 1;
+  return n + oct;
+}
+function midiToFreq(midi){ return 440 * Math.pow(2, (midi - 69) / 12); }
+
+// Cycle length in samples needed to make the exported file play at
+// the target MIDI note when triggered at native rate. The cycle has to
+// be an integer number of samples, so rounding introduces a small
+// detuning the user can see via the cents readout.
+function getExportLen(){
+  const f = midiToFreq(state.tuneNote);
+  return Math.max(8, Math.round(SR / f));
+}
+function getExportLenCents(){
+  // How far off (in cents) the achievable fundamental is from the target.
+  const target = midiToFreq(state.tuneNote);
+  const actual = SR / getExportLen();
+  return 1200 * Math.log2(actual / target);
+}
+
+// ============================================================
+// STATE
+// ============================================================
+const SR = 48000; // export sample rate
+const WORKING_N = 2048; // resolution for processing / display / playback buffer
+
+// Audio nodes — declared at the top so they're in scope for any
+// event handler or initializer that runs before initAudio().
+let audioContext = null;
+let sourceNode = null;
+let filterNode = null;
+let filterDriveNode = null;
+let lfoNode = null;
+let lfoGain = null;
+let gainNode = null;
+let analyserNode = null;
+let currentBuffer = null;
+// Reused buffer for the post-processing analyser. 8192 samples covers two
+// cycles even at the lowest tune note (C0 ≈ 16 Hz → ~2935 samples/cycle).
+const analyserBuffer = new Float32Array(8192);
+
+const state = {
+  oscA:{ type:'sine', phase:0, harm:64, sym:0.5, steps:8, seed:7, level:1.0 },
+  oscB:{ type:'sine', phase:0, harm:64, sym:0.5, steps:8, ratio:1, level:0.0 },
+  mix:{ mode:'BLEND', amount:0 },
+  shape:{ fold:0, drive:0, crush:0, pd:0 },
+  filter:{ type:'off', cutoff:2000, q:1, lfoRate:2, lfoDepth:0, drive:0 },
+  norm:true,
+  tuneNote:36, // MIDI note for the exported single-cycle's native fundamental (C2)
+                // Doubles as the preview-playback pitch — what you hear is exactly
+                // what the file will sound like when triggered at native rate.
+  exportBits:16,
+  cycles:1,
+  volume:0.5,
+  playing:false,
+  wavetable:new Float32Array(256)
+};
+
+// init wavetable as sine
+for (let i = 0; i < 256; i++) state.wavetable[i] = Math.sin(i / 256 * 2 * Math.PI);
+
+// ============================================================
+// PRNG (mulberry32 - seeded for reproducible S&H/noise)
+// ============================================================
+function mulberry32(seed){
+  let t = seed >>> 0;
+  return function(){
+    t = (t + 0x6D2B79F5) >>> 0;
+    let x = t;
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ============================================================
+// WAVEFORM GENERATORS — each returns -1..1 from phase 0..1
+// ============================================================
+
+// Pure analytical
+function wSine(p){ return Math.sin(p * 2 * Math.PI); }
+function wTri(p, skew){
+  skew = Math.max(0.001, Math.min(0.999, skew));
+  if (p < skew) return -1 + 2 * p / skew;
+  return 1 - 2 * (p - skew) / (1 - skew);
+}
+function wSawDesc(p){ return 1 - 2 * p; }
+function wRamp(p){ return 2 * p - 1; }
+function wSquare(p, pw){
+  pw = Math.max(0.001, Math.min(0.999, pw));
+  return p < pw ? 1 : -1;
+}
+function wStair(p, steps){
+  steps = Math.max(2, Math.floor(steps));
+  const s = Math.floor(p * steps) / (steps - 1);
+  return 2 * s - 1;
+}
+function wSH(p, steps, seed){
+  steps = Math.max(2, Math.floor(steps));
+  const idx = Math.floor(p * steps);
+  const rng = mulberry32(seed * 7919 + idx + 1);
+  return rng() * 2 - 1;
+}
+let _noiseCache = null;
+let _noiseSeedCache = -1;
+function wNoise(p, seed){
+  if (_noiseSeedCache !== seed || !_noiseCache) {
+    _noiseCache = new Float32Array(WORKING_N);
+    const rng = mulberry32(seed * 7919 + 1);
+    for (let i = 0; i < WORKING_N; i++) _noiseCache[i] = rng() * 2 - 1;
+    _noiseSeedCache = seed;
+  }
+  const i = Math.floor(p * WORKING_N) % WORKING_N;
+  return _noiseCache[i];
+}
+function wWavetable(p, wt){
+  const i = p * wt.length;
+  const i0 = Math.floor(i) % wt.length;
+  const i1 = (i0 + 1) % wt.length;
+  const f = i - Math.floor(i);
+  return wt[i0] * (1 - f) + wt[i1] * f;
+}
+
+// Band-limited via additive
+function blSquare(p, harm, pw){
+  // Use BLIT-style: combine two band-limited saws offset by pw
+  // Simpler: additive square (pw=0.5 only) with odd harmonics
+  // For pw != 0.5, use difference-of-saws
+  if (Math.abs(pw - 0.5) < 0.005) {
+    let s = 0;
+    for (let k = 1; k <= harm; k += 2) s += Math.sin(2 * Math.PI * k * p) / k;
+    return s * (4 / Math.PI);
+  } else {
+    // Difference of two phase-shifted band-limited saws
+    let s1 = 0, s2 = 0;
+    for (let k = 1; k <= harm; k++) {
+      s1 += Math.sin(2 * Math.PI * k * p) / k;
+      s2 += Math.sin(2 * Math.PI * k * (p - pw)) / k;
+    }
+    // Centered, scaled
+    const a = (s1 - s2) * (1 / Math.PI);
+    return Math.max(-1, Math.min(1, a));
+  }
+}
+function blSaw(p, harm){
+  // descending saw
+  let s = 0;
+  for (let k = 1; k <= harm; k++) s += Math.sin(2 * Math.PI * k * p) / k;
+  return -s * (2 / Math.PI);
+}
+function blRamp(p, harm){
+  let s = 0;
+  for (let k = 1; k <= harm; k++) s += Math.sin(2 * Math.PI * k * p) / k;
+  return s * (2 / Math.PI);
+}
+function blTri(p, harm){
+  let s = 0;
+  let sign = 1;
+  for (let k = 1; k <= harm; k += 2) {
+    s += sign * Math.sin(2 * Math.PI * k * p) / (k * k);
+    sign = -sign;
+  }
+  return s * (8 / (Math.PI * Math.PI));
+}
+
+// Render an osc's single-cycle waveform of N samples
+function renderOsc(N, o, wt, ratioMult){
+  ratioMult = ratioMult || 1;
+  const out = new Float32Array(N);
+  const phaseOff = o.phase / 360;
+  for (let i = 0; i < N; i++) {
+    let p = (i / N * ratioMult + phaseOff) % 1;
+    if (p < 0) p += 1;
+    let v = 0;
+    switch (o.type) {
+      case 'sine':  v = wSine(p); break;
+      case 'tri':
+        if (o.harm >= 128 || o.harm < 1) v = wTri(p, o.sym);
+        else if (Math.abs(o.sym - 0.5) < 0.01) v = blTri(p, o.harm);
+        else v = wTri(p, o.sym); // skewed tri stays analytical
+        break;
+      case 'saw':
+        if (o.harm >= 128) v = wSawDesc(p);
+        else v = blSaw(p, o.harm);
+        break;
+      case 'ramp':
+        if (o.harm >= 128) v = wRamp(p);
+        else v = blRamp(p, o.harm);
+        break;
+      case 'sq':
+        if (o.harm >= 128) v = wSquare(p, o.sym);
+        else v = blSquare(p, o.harm, o.sym);
+        break;
+      case 'stair': v = wStair(p, o.steps); break;
+      case 'sh':    v = wSH(p, o.steps, o.seed || 1); break;
+      case 'noise': v = wNoise(p, o.seed || 1); break;
+      case 'wt':    v = wWavetable(p, wt); break;
+    }
+    out[i] = v * o.level;
+  }
+  return out;
+}
+
+// ============================================================
+// COMBINE A + B with mix mode
+// ============================================================
+function combine(a, b, mode, amt){
+  const N = a.length;
+  const out = new Float32Array(N);
+  // For FM, we need to phase-modulate A by B
+  if (mode === 'FM') {
+    for (let i = 0; i < N; i++) {
+      const mod = b[i] * amt * 0.5; // scale
+      let idx = (i / N + mod) * N;
+      idx = ((idx % N) + N) % N;
+      const i0 = Math.floor(idx) % N;
+      const i1 = (i0 + 1) % N;
+      const f = idx - Math.floor(idx);
+      out[i] = a[i0] * (1 - f) + a[i1] * f;
+    }
+    return out;
+  }
+  for (let i = 0; i < N; i++) {
+    const x = a[i], y = b[i];
+    let v = x;
+    switch (mode) {
+      case 'BLEND': v = x * (1 - amt) + y * amt; break;
+      case 'RING':  v = x + (x * y - x) * amt; break;
+      case 'AM':    v = x * (1 - amt + amt * (y * 0.5 + 0.5)); break;
+      case 'MIN':   v = x + (Math.min(x, y) - x) * amt; break;
+      case 'MAX':   v = x + (Math.max(x, y) - x) * amt; break;
+      case 'XOR': {
+        const xi = Math.floor((x * 0.5 + 0.5) * 255) & 0xff;
+        const yi = Math.floor((y * 0.5 + 0.5) * 255) & 0xff;
+        const z = ((xi ^ yi) / 255) * 2 - 1;
+        v = x + (z - x) * amt;
+        break;
+      }
+      case 'AND': {
+        const xi = Math.floor((x * 0.5 + 0.5) * 255) & 0xff;
+        const yi = Math.floor((y * 0.5 + 0.5) * 255) & 0xff;
+        const z = ((xi & yi) / 255) * 2 - 1;
+        v = x + (z - x) * amt;
+        break;
+      }
+      case 'OR': {
+        const xi = Math.floor((x * 0.5 + 0.5) * 255) & 0xff;
+        const yi = Math.floor((y * 0.5 + 0.5) * 255) & 0xff;
+        const z = ((xi | yi) / 255) * 2 - 1;
+        v = x + (z - x) * amt;
+        break;
+      }
+      case 'FOLD': {
+        let z = x + y * amt * 2;
+        // fold into -1..1
+        while (z > 1 || z < -1) {
+          if (z > 1) z = 2 - z;
+          else if (z < -1) z = -2 - z;
+        }
+        v = z;
+        break;
+      }
+      default: v = x;
+    }
+    out[i] = v;
+  }
+  return out;
+}
+
+// ============================================================
+// SHAPING — fold / drive / crush / phase distortion
+// ============================================================
+function applyShape(samples, s){
+  const N = samples.length;
+  const out = new Float32Array(N);
+
+  // Phase distortion: read with non-linearly warped phase
+  let pd = s.pd;
+  let src = samples;
+  if (pd > 0) {
+    src = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      const p = i / N;
+      // warp: p' = p + pd * sin(2πp)
+      let pp = p + pd * 0.3 * Math.sin(2 * Math.PI * p);
+      pp = ((pp % 1) + 1) % 1;
+      const idx = pp * N;
+      const i0 = Math.floor(idx) % N;
+      const i1 = (i0 + 1) % N;
+      const f = idx - Math.floor(idx);
+      src[i] = samples[i0] * (1 - f) + samples[i1] * f;
+    }
+  }
+
+  for (let i = 0; i < N; i++) {
+    let v = src[i];
+
+    // Drive — soft tanh saturation
+    if (s.drive > 0) {
+      const k = 1 + s.drive * 9; // 1..10
+      v = Math.tanh(v * k) / Math.tanh(k * 0.5);
+      v = Math.max(-1, Math.min(1, v));
+    }
+
+    // Wavefold
+    if (s.fold > 0) {
+      v = v * (1 + s.fold * 4);
+      let safety = 0;
+      while ((v > 1 || v < -1) && safety++ < 32) {
+        if (v > 1) v = 2 - v;
+        else if (v < -1) v = -2 - v;
+      }
+    }
+
+    // Bit crush — reduce bit depth (1 = 16-bit, 0 = 2-bit)
+    if (s.crush > 0) {
+      const bits = Math.max(2, Math.round(16 - s.crush * 13));
+      const steps = Math.pow(2, bits - 1);
+      v = Math.round(v * steps) / steps;
+    }
+
+    out[i] = v;
+  }
+  return out;
+}
+
+// ============================================================
+// MAIN RENDER PIPELINE
+// ============================================================
+function renderFull(N){
+  N = N || WORKING_N;
+  const a = renderOsc(N, state.oscA, state.wavetable, 1);
+  const b = renderOsc(N, state.oscB, state.wavetable, state.oscB.ratio);
+  let mixed = combine(a, b, state.mix.mode, state.mix.amount);
+  mixed = applyShape(mixed, state.shape);
+
+  // remove DC
+  let dc = 0;
+  for (let i = 0; i < N; i++) dc += mixed[i];
+  dc /= N;
+  for (let i = 0; i < N; i++) mixed[i] -= dc;
+
+  if (state.norm) {
+    let peak = 0;
+    for (let i = 0; i < N; i++) {
+      const a = Math.abs(mixed[i]);
+      if (a > peak) peak = a;
+    }
+    if (peak > 0.0001) {
+      const g = 0.99 / peak;
+      for (let i = 0; i < N; i++) mixed[i] *= g;
+    }
+  } else {
+    // hard clip safety
+    for (let i = 0; i < N; i++) mixed[i] = Math.max(-1, Math.min(1, mixed[i]));
+  }
+  return mixed;
+}
+
+// ============================================================
+// SCOPE DRAWING
+// ============================================================
+const scopeCanvas = document.getElementById('scope');
+const sctx = scopeCanvas.getContext('2d');
+function resizeScope(){
+  const r = scopeCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  scopeCanvas.width = r.width * dpr;
+  scopeCanvas.height = r.height * dpr;
+  sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', () => { resizeScope(); drawScope(); resizeWT(); drawWT(); });
+
+let lastWaveform = null;
+function drawScope(){
+  if (!lastWaveform) return;
+  const w = scopeCanvas.clientWidth;
+  const h = scopeCanvas.clientHeight;
+  sctx.clearRect(0, 0, w, h);
+
+  // graticule background gradient
+  const grd = sctx.createRadialGradient(w/2, h/2, 30, w/2, h/2, w/1.5);
+  grd.addColorStop(0, 'rgba(255,43,214,0.04)');
+  grd.addColorStop(1, 'rgba(0,0,0,1)');
+  sctx.fillStyle = grd;
+  sctx.fillRect(0, 0, w, h);
+
+  // Grid
+  sctx.strokeStyle = 'rgba(255,43,214,0.10)';
+  sctx.lineWidth = 1;
+  for (let i = 1; i < 10; i++) {
+    const x = w * i / 10;
+    sctx.beginPath(); sctx.moveTo(x, 0); sctx.lineTo(x, h); sctx.stroke();
+  }
+  for (let i = 1; i < 8; i++) {
+    const y = h * i / 8;
+    sctx.beginPath(); sctx.moveTo(0, y); sctx.lineTo(w, y); sctx.stroke();
+  }
+  // center cross
+  sctx.strokeStyle = 'rgba(255,43,214,0.25)';
+  sctx.lineWidth = 1;
+  sctx.beginPath(); sctx.moveTo(0, h/2); sctx.lineTo(w, h/2); sctx.stroke();
+  sctx.beginPath(); sctx.moveTo(w/2, 0); sctx.lineTo(w/2, h); sctx.stroke();
+
+  // tick marks at center
+  sctx.strokeStyle = 'rgba(255,43,214,0.4)';
+  for (let i = 0; i < 50; i++) {
+    const x = w * i / 50;
+    sctx.beginPath(); sctx.moveTo(x, h/2 - 3); sctx.lineTo(x, h/2 + 3); sctx.stroke();
+  }
+  for (let i = 0; i < 40; i++) {
+    const y = h * i / 40;
+    sctx.beginPath(); sctx.moveTo(w/2 - 3, y); sctx.lineTo(w/2 + 3, y); sctx.stroke();
+  }
+
+  // Waveform — draw 2 cycles for visual context
+  const wf = lastWaveform;
+  const N = wf.length;
+  const cyclesShown = 2;
+
+  // Source trace is the design-time waveform (pre filter/drive/volume).
+  // When audio is playing we dim it so the live output overlay (drawn below
+  // in --cyan/purple) reads as the foreground signal.
+  if (state.playing) sctx.globalAlpha = 0.45;
+
+  // Glow layer
+  sctx.shadowColor = 'rgba(255,43,214,0.6)';
+  sctx.shadowBlur = 14;
+  sctx.strokeStyle = '#ff2bd6';
+  sctx.lineWidth = 2;
+  sctx.beginPath();
+  for (let xpx = 0; xpx <= w; xpx++) {
+    const t = xpx / w;
+    const idx = t * N * cyclesShown;
+    const i0 = Math.floor(idx) % N;
+    const i1 = (i0 + 1) % N;
+    const f = idx - Math.floor(idx);
+    const v = wf[i0] * (1 - f) + wf[i1] * f;
+    const y = h/2 - v * (h/2 - 12);
+    if (xpx === 0) sctx.moveTo(xpx, y);
+    else sctx.lineTo(xpx, y);
+  }
+  sctx.stroke();
+
+  // Sharp layer on top
+  sctx.shadowBlur = 0;
+  sctx.strokeStyle = '#e7ffaa';
+  sctx.lineWidth = 1;
+  sctx.beginPath();
+  for (let xpx = 0; xpx <= w; xpx++) {
+    const t = xpx / w;
+    const idx = t * N * cyclesShown;
+    const i0 = Math.floor(idx) % N;
+    const i1 = (i0 + 1) % N;
+    const f = idx - Math.floor(idx);
+    const v = wf[i0] * (1 - f) + wf[i1] * f;
+    const y = h/2 - v * (h/2 - 12);
+    if (xpx === 0) sctx.moveTo(xpx, y);
+    else sctx.lineTo(xpx, y);
+  }
+  sctx.stroke();
+
+  sctx.globalAlpha = 1.0;
+
+  // Cycle boundaries
+  sctx.strokeStyle = 'rgba(255,43,214,0.18)';
+  sctx.setLineDash([4, 4]);
+  sctx.lineWidth = 1;
+  for (let c = 1; c < cyclesShown; c++) {
+    const x = w * c / cyclesShown;
+    sctx.beginPath(); sctx.moveTo(x, 0); sctx.lineTo(x, h); sctx.stroke();
+  }
+  sctx.setLineDash([]);
+
+  // Stats
+  let peak = 0, rms = 0, zcr = 0, dc = 0;
+  for (let i = 0; i < N; i++) {
+    const v = wf[i];
+    if (Math.abs(v) > peak) peak = Math.abs(v);
+    rms += v * v;
+    dc += v;
+    if (i > 0 && ((wf[i-1] < 0 && v >= 0) || (wf[i-1] > 0 && v <= 0))) zcr++;
+  }
+  rms = Math.sqrt(rms / N);
+  dc /= N;
+  document.getElementById('scope-peak').textContent = peak.toFixed(2);
+  document.getElementById('scope-rms').textContent = rms.toFixed(2);
+  document.getElementById('scope-zcr').textContent = zcr;
+  document.getElementById('scope-dc').textContent = (dc >= 0 ? '+' : '') + dc.toFixed(3);
+  document.getElementById('scope-mode').textContent = state.oscB.level > 0.01 ? (state.mix.mode + '·B' + (state.oscB.ratio > 1 ? '×' + state.oscB.ratio : '')) : 'A';
+
+  // Post-processing overlay — what's actually going to the speakers right now.
+  // Only when playing; the analyser node only has meaningful data during playback.
+  if (state.playing && analyserNode) drawOutputTrace(w, h);
+}
+
+// Drawn on top of the (dimmed) source trace. Pulls a slice of the post-gain
+// audio out of the analyser, zero-crossing-aligns it for a stable image, and
+// stretches it across the same x-axis as the source so the two are directly
+// comparable.
+function drawOutputTrace(w, h){
+  analyserNode.getFloatTimeDomainData(analyserBuffer);
+
+  const fund = midiToFreq(state.tuneNote);
+  const samplesPerCycle = audioContext.sampleRate / fund;
+  const cyclesShown = 2;
+  let samplesNeeded = Math.ceil(samplesPerCycle * cyclesShown);
+  if (samplesNeeded > analyserBuffer.length - 2) samplesNeeded = analyserBuffer.length - 2;
+
+  // Trigger on first positive-going zero crossing for a stable trace.
+  // If we can't find one (silence / DC-locked), fall back to index 0.
+  let startIdx = 0;
+  const searchLimit = analyserBuffer.length - samplesNeeded;
+  for (let i = 1; i < searchLimit; i++) {
+    if (analyserBuffer[i-1] < 0 && analyserBuffer[i] >= 0) { startIdx = i; break; }
+  }
+
+  sctx.shadowColor = 'rgba(160,96,255,0.55)';
+  sctx.shadowBlur = 10;
+  sctx.strokeStyle = '#a060ff';
+  sctx.lineWidth = 2;
+  sctx.beginPath();
+  for (let xpx = 0; xpx <= w; xpx++) {
+    const t = xpx / w;
+    const sIdx = startIdx + Math.floor(t * samplesNeeded);
+    const sample = analyserBuffer[sIdx];
+    const y = h/2 - sample * (h/2 - 12);
+    if (xpx === 0) sctx.moveTo(xpx, y);
+    else sctx.lineTo(xpx, y);
+  }
+  sctx.stroke();
+  sctx.shadowBlur = 0;
+}
+
+// rAF-driven repaint while audio is playing, so the output overlay tracks the
+// actual signal in real time (filter sweeps, LFO modulation, drive changes).
+// Stops on stop to save the CPU it doesn't need.
+let scopeAnimRaf = null;
+function startScopeAnimation(){
+  if (scopeAnimRaf) return;
+  const tick = () => {
+    if (!state.playing) { scopeAnimRaf = null; return; }
+    drawScope();
+    scopeAnimRaf = requestAnimationFrame(tick);
+  };
+  scopeAnimRaf = requestAnimationFrame(tick);
+}
+function stopScopeAnimation(){
+  if (scopeAnimRaf) { cancelAnimationFrame(scopeAnimRaf); scopeAnimRaf = null; }
+}
+
+// ============================================================
+// WAVETABLE EDITOR
+// ============================================================
+const wtCanvas = document.getElementById('wt-canvas');
+const wctx = wtCanvas.getContext('2d');
+function resizeWT(){
+  const r = wtCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  wtCanvas.width = r.width * dpr;
+  wtCanvas.height = r.height * dpr;
+  wctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function drawWT(){
+  const w = wtCanvas.clientWidth;
+  const h = wtCanvas.clientHeight;
+  wctx.clearRect(0, 0, w, h);
+
+  wctx.fillStyle = '#000';
+  wctx.fillRect(0, 0, w, h);
+
+  // grid
+  wctx.strokeStyle = 'rgba(255,43,214,0.10)';
+  wctx.lineWidth = 1;
+  for (let i = 1; i < 16; i++) {
+    const x = w * i / 16;
+    wctx.beginPath(); wctx.moveTo(x, 0); wctx.lineTo(x, h); wctx.stroke();
+  }
+  for (let i = 1; i < 4; i++) {
+    const y = h * i / 4;
+    wctx.beginPath(); wctx.moveTo(0, y); wctx.lineTo(w, y); wctx.stroke();
+  }
+  wctx.strokeStyle = 'rgba(255,43,214,0.25)';
+  wctx.beginPath(); wctx.moveTo(0, h/2); wctx.lineTo(w, h/2); wctx.stroke();
+
+  // waveform
+  const wt = state.wavetable;
+  wctx.shadowColor = 'rgba(255,43,214,0.6)';
+  wctx.shadowBlur = 10;
+  wctx.strokeStyle = '#ff2bd6';
+  wctx.lineWidth = 2;
+  wctx.beginPath();
+  for (let i = 0; i < wt.length; i++) {
+    const x = i / (wt.length - 1) * w;
+    const y = h/2 - wt[i] * (h/2 - 8);
+    if (i === 0) wctx.moveTo(x, y);
+    else wctx.lineTo(x, y);
+  }
+  wctx.stroke();
+  wctx.shadowBlur = 0;
+}
+
+// wavetable drawing
+let wtDrawing = false;
+let wtLastIdx = -1;
+let wtLastVal = 0;
+function wtMouseToIdxVal(ev){
+  const r = wtCanvas.getBoundingClientRect();
+  const x = (ev.clientX - r.left) / r.width;
+  const y = (ev.clientY - r.top) / r.height;
+  const idx = Math.max(0, Math.min(state.wavetable.length - 1, Math.floor(x * state.wavetable.length)));
+  const val = Math.max(-1, Math.min(1, 1 - 2 * y));
+  return { idx, val };
+}
+function wtPaint(idx, val){
+  if (wtLastIdx >= 0 && Math.abs(idx - wtLastIdx) > 1) {
+    // interpolate between last and current
+    const di = Math.abs(idx - wtLastIdx);
+    const step = idx > wtLastIdx ? 1 : -1;
+    for (let i = wtLastIdx, k = 0; i !== idx; i += step, k++) {
+      const t = k / di;
+      state.wavetable[i] = wtLastVal * (1 - t) + val * t;
+    }
+  }
+  state.wavetable[idx] = val;
+  wtLastIdx = idx; wtLastVal = val;
+}
+wtCanvas.addEventListener('mousedown', e => {
+  wtDrawing = true;
+  wtLastIdx = -1;
+  const { idx, val } = wtMouseToIdxVal(e);
+  wtPaint(idx, val);
+  drawWT();
+  render();
+});
+wtCanvas.addEventListener('mousemove', e => {
+  if (!wtDrawing) return;
+  const { idx, val } = wtMouseToIdxVal(e);
+  wtPaint(idx, val);
+  drawWT();
+  render();
+});
+window.addEventListener('mouseup', () => { wtDrawing = false; wtLastIdx = -1; });
+wtCanvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  wtDrawing = true; wtLastIdx = -1;
+  const t = e.touches[0];
+  const { idx, val } = wtMouseToIdxVal({clientX:t.clientX,clientY:t.clientY});
+  wtPaint(idx, val); drawWT(); render();
+}, {passive:false});
+wtCanvas.addEventListener('touchmove', e => {
+  if (!wtDrawing) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  const { idx, val } = wtMouseToIdxVal({clientX:t.clientX,clientY:t.clientY});
+  wtPaint(idx, val); drawWT(); render();
+}, {passive:false});
+wtCanvas.addEventListener('touchend', () => { wtDrawing = false; wtLastIdx = -1; });
+
+function wtInit(fn){
+  const N = state.wavetable.length;
+  for (let i = 0; i < N; i++) state.wavetable[i] = fn(i / N);
+  drawWT(); render();
+}
+document.getElementById('wt-init-sine').onclick = () => wtInit(p => Math.sin(p * 2 * Math.PI));
+document.getElementById('wt-init-saw').onclick = () => wtInit(p => 1 - 2 * p);
+document.getElementById('wt-init-sq').onclick = () => wtInit(p => p < 0.5 ? 1 : -1);
+document.getElementById('wt-init-tri').onclick = () => wtInit(p => p < 0.5 ? -1 + 4*p : 3 - 4*p);
+document.getElementById('wt-init-rand').onclick = () => {
+  const rng = mulberry32(Math.floor(Math.random() * 100000));
+  wtInit(() => rng() * 2 - 1);
+};
+document.getElementById('wt-clear').onclick = () => wtInit(() => 0);
+document.getElementById('wt-smooth').onclick = () => {
+  const wt = state.wavetable;
+  const N = wt.length;
+  const tmp = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const a = wt[(i - 1 + N) % N];
+    const b = wt[i];
+    const c = wt[(i + 1) % N];
+    tmp[i] = (a + b + b + c) / 4;
+  }
+  for (let i = 0; i < N; i++) wt[i] = tmp[i];
+  drawWT(); render();
+};
+document.getElementById('wt-norm').onclick = () => {
+  const wt = state.wavetable;
+  let peak = 0;
+  for (let i = 0; i < wt.length; i++) if (Math.abs(wt[i]) > peak) peak = Math.abs(wt[i]);
+  if (peak > 0.0001) {
+    const g = 0.99 / peak;
+    for (let i = 0; i < wt.length; i++) wt[i] *= g;
+  }
+  drawWT(); render();
+};
+document.getElementById('wt-invert').onclick = () => {
+  for (let i = 0; i < state.wavetable.length; i++) state.wavetable[i] = -state.wavetable[i];
+  drawWT(); render();
+};
+document.getElementById('wt-reverse').onclick = () => {
+  const wt = state.wavetable;
+  const r = new Float32Array(wt.length);
+  for (let i = 0; i < wt.length; i++) r[i] = wt[wt.length - 1 - i];
+  for (let i = 0; i < wt.length; i++) wt[i] = r[i];
+  drawWT(); render();
+};
+
+// ============================================================
+// BUILD UI — wave type buttons + mix mode buttons
+// ============================================================
+function buildWaveGrid(host, sideKey){
+  WAVE_TYPES.forEach(wt => {
+    const b = document.createElement('button');
+    b.className = 'wave-btn';
+    b.dataset.id = wt.id;
+    b.innerHTML = `<svg viewBox="0 0 20 14"><path class="wsym" d="${wt.sym}"/></svg><span>${wt.name}</span>`;
+    if (state[sideKey].type === wt.id) b.classList.add('active');
+    b.onclick = () => {
+      state[sideKey].type = wt.id;
+      host.querySelectorAll('.wave-btn').forEach(x => x.classList.toggle('active', x.dataset.id === wt.id));
+      updateSliderRelevance();
+      render();
+    };
+    host.appendChild(b);
+  });
+}
+buildWaveGrid(document.getElementById('wave-grid-a'), 'oscA');
+buildWaveGrid(document.getElementById('wave-grid-b'), 'oscB');
+
+function buildMixGrid(){
+  const host = document.getElementById('mix-mode-row');
+  MIX_MODES.forEach(m => {
+    const b = document.createElement('button');
+    b.className = 'mode-btn';
+    b.textContent = m;
+    if (state.mix.mode === m) b.classList.add('active');
+    b.onclick = () => {
+      state.mix.mode = m;
+      host.querySelectorAll('.mode-btn').forEach(x => x.classList.toggle('active', x.textContent === m));
+      document.getElementById('val-mix-mode').textContent = m;
+      render();
+    };
+    host.appendChild(b);
+  });
+}
+buildMixGrid();
+
+// Show/hide param sliders depending on wave type
+function isRelevant(side, key){
+  const t = state[side].type;
+  switch (key) {
+    case 'harm': return ['saw','ramp','sq','tri'].includes(t);
+    case 'sym':  return ['sq','tri'].includes(t);
+    case 'steps':return ['stair','sh'].includes(t);
+    case 'seed': return ['sh','noise'].includes(t);
+    case 'ratio':return true;
+    case 'phase':return t !== 'noise';
+    case 'level':return true;
+  }
+  return true;
+}
+function updateSliderRelevance(){
+  ['phase','harm','sym','steps','seed','lvl'].forEach(k => {
+    const keyMap = {lvl:'level'};
+    const realKey = keyMap[k] || k;
+    ['a','b'].forEach(side => {
+      const el = document.getElementById(`${side}-${k}`);
+      if (!el) return;
+      const labelRow = el.previousElementSibling;
+      const rel = isRelevant(side === 'a' ? 'oscA' : 'oscB', realKey);
+      el.disabled = !rel;
+      if (labelRow) labelRow.classList.toggle('disabled', !rel);
+    });
+  });
+}
+
+// ============================================================
+// SLIDER WIRING
+// ============================================================
+function bind(id, side, key, fmt, scale){
+  const el = document.getElementById(id);
+  const lblEl = document.getElementById('val-' + id);
+  function update(){
+    const v = parseFloat(el.value);
+    const scaled = scale ? scale(v) : v;
+    state[side][key] = scaled;
+    if (lblEl) lblEl.textContent = fmt ? fmt(v, scaled) : v;
+    render();
+  }
+  el.addEventListener('input', update);
+  return update;
+}
+
+// OSC A bindings
+bind('a-phase','oscA','phase', v => v + '°');
+bind('a-harm','oscA','harm', v => v == 128 ? '∞' : v);
+bind('a-sym','oscA','sym', v => v + '%', v => v / 100);
+bind('a-steps','oscA','steps', v => v);
+bind('a-seed','oscA','seed', v => v);
+bind('a-lvl','oscA','level', v => v + '%', v => v / 100);
+
+// OSC B bindings — note id quirk: 'val-a-lvl' / 'val-b-lvl'
+bind('b-phase','oscB','phase', v => v + '°');
+bind('b-harm','oscB','harm', v => v == 128 ? '∞' : v);
+bind('b-sym','oscB','sym', v => v + '%', v => v / 100);
+bind('b-steps','oscB','steps', v => v);
+bind('b-ratio','oscB','ratio', v => '×' + v);
+bind('b-lvl','oscB','level', v => v + '%', v => v / 100);
+
+// MIX amount
+bind('mix-amt','mix','amount', v => v + '%', v => v / 100);
+
+// SHAPE
+bind('sh-fold','shape','fold', v => v + '%', v => v / 100);
+bind('sh-drive','shape','drive', v => v + '%', v => v / 100);
+bind('sh-crush','shape','crush', v => {
+  if (v == 0) return '16b';
+  const bits = Math.max(2, Math.round(16 - v / 100 * 13));
+  return bits + 'b';
+}, v => v / 100);
+bind('sh-pd','shape','pd', v => v + '%', v => v / 100);
+
+// Norm toggle
+document.getElementById('norm-on').onclick = () => {
+  state.norm = true;
+  document.getElementById('norm-on').classList.add('active');
+  document.getElementById('norm-off').classList.remove('active');
+  document.getElementById('val-norm').textContent = 'ON';
+  render();
+};
+document.getElementById('norm-off').onclick = () => {
+  state.norm = false;
+  document.getElementById('norm-off').classList.add('active');
+  document.getElementById('norm-on').classList.remove('active');
+  document.getElementById('val-norm').textContent = 'OFF';
+  render();
+};
+
+// FILTER
+document.querySelectorAll('#filter-type-row .mode-btn').forEach(b => {
+  b.onclick = () => {
+    const ft = b.dataset.ft;
+    const prev = state.filter.type;
+    state.filter.type = ft;
+    document.querySelectorAll('#filter-type-row .mode-btn').forEach(x => x.classList.toggle('active', x === b));
+    document.getElementById('val-filt-type').textContent = ft.toUpperCase();
+    updateFilterNode();
+    // If we crossed the OFF/ON boundary, re-route the live source
+    // through (or around) filterNode.
+    const wasOff = prev === 'off';
+    const isOff = ft === 'off';
+    if (sourceNode && audioContext && wasOff !== isOff) {
+      try { sourceNode.disconnect(); } catch(e){}
+      connectSourceToChain(sourceNode);
+    }
+  };
+});
+document.getElementById('filt-cutoff').addEventListener('input', e => {
+  // Log-scale cutoff feel — but we'll use linear underlying value 20–20000
+  state.filter.cutoff = parseFloat(e.target.value);
+  document.getElementById('val-cutoff').textContent = Math.round(state.filter.cutoff) + ' Hz';
+  updateFilterNode();
+});
+document.getElementById('filt-q').addEventListener('input', e => {
+  state.filter.q = parseFloat(e.target.value);
+  document.getElementById('val-q').textContent = state.filter.q.toFixed(1);
+  updateFilterNode();
+});
+document.getElementById('filt-lforate').addEventListener('input', e => {
+  state.filter.lfoRate = parseFloat(e.target.value);
+  document.getElementById('val-lforate').textContent = state.filter.lfoRate.toFixed(2) + ' Hz';
+  updateLFO();
+});
+document.getElementById('filt-lfodepth').addEventListener('input', e => {
+  state.filter.lfoDepth = parseFloat(e.target.value) / 100;
+  document.getElementById('val-lfodepth').textContent = Math.round(state.filter.lfoDepth * 100) + '%';
+  updateLFO();
+});
+document.getElementById('filt-drive').addEventListener('input', e => {
+  state.filter.drive = parseFloat(e.target.value);
+  document.getElementById('val-filt-drive').textContent = state.filter.drive.toFixed(1) + ' dB';
+  updateFilterDrive();
+});
+
+// Make cutoff slider log-feel by reinterpreting linear input as log
+function setLogCutoff(){
+  const el = document.getElementById('filt-cutoff');
+  el.min = 0; el.max = 1000; el.step = 1; el.value = 600;
+  function getHz(v){ return 20 * Math.pow(1000, v / 1000); }
+  el.removeEventListener('input', el._oldHandler || (()=>{}));
+  function handler(){
+    const hz = getHz(parseFloat(el.value));
+    state.filter.cutoff = hz;
+    document.getElementById('val-cutoff').textContent = hz < 1000 ? Math.round(hz) + ' Hz' : (hz/1000).toFixed(2) + ' kHz';
+    updateFilterNode();
+  }
+  el.addEventListener('input', handler);
+  // initialize
+  handler();
+}
+setLogCutoff();
+
+// LENGTH + CYCLES
+// TUNE — target note for the exported single-cycle's native fundamental.
+// Also drives the live preview's pitch, so the preview always sounds
+// exactly like what the file will sound like at native rate.
+function setTuneNote(midi){
+  midi = Math.max(12, Math.min(84, midi | 0));
+  state.tuneNote = midi;
+  document.getElementById('tune-note').value = midi;
+  document.getElementById('val-tune').textContent = midiToName(midi);
+  // Highlight the C-tick if we're sitting exactly on it
+  document.querySelectorAll('#tune-ticks .tick').forEach(t => {
+    t.classList.toggle('current', parseInt(t.dataset.tune) === midi);
+  });
+  updateInfoBar();
+  updatePlaybackRate();
+}
+document.getElementById('tune-note').addEventListener('input', e => {
+  setTuneNote(parseInt(e.target.value));
+});
+document.querySelectorAll('#tune-ticks .tick').forEach(t => {
+  t.onclick = () => setTuneNote(parseInt(t.dataset.tune));
+});
+document.querySelectorAll('#cycles-group .option-btn').forEach(b => {
+  b.onclick = () => {
+    state.cycles = parseInt(b.dataset.cyc);
+    document.querySelectorAll('#cycles-group .option-btn').forEach(x => x.classList.toggle('active', x === b));
+    updateInfoBar();
+  };
+});
+document.querySelectorAll('#bits-group .option-btn').forEach(b => {
+  b.onclick = () => {
+    state.exportBits = parseInt(b.dataset.bits);
+    document.querySelectorAll('#bits-group .option-btn').forEach(x => x.classList.toggle('active', x === b));
+    updateInfoBar();
+  };
+});
+
+// Volume
+document.getElementById('volume').addEventListener('input', e => {
+  state.volume = parseFloat(e.target.value) / 100;
+  const db = state.volume <= 0.001 ? -Infinity : 20 * Math.log10(state.volume);
+  document.getElementById('val-vol').textContent = db === -Infinity ? '−∞dB' : (db >= 0 ? '+' : '') + db.toFixed(0) + 'dB';
+  if (gainNode) gainNode.gain.setTargetAtTime(state.volume * state.volume, audioContext.currentTime, 0.02);
+});
+
+document.getElementById('btn-reset').onclick = () => {
+  if (!confirm('Reset all parameters to default?')) return;
+  resetState();
+};
+document.getElementById('btn-export').onclick = exportWAV;
+document.getElementById('btn-play').onclick = togglePlay;
+
+// ============================================================
+// AUDIO (Web Audio API)
+// (audio node variables are declared near the top of the script to
+//  avoid temporal-dead-zone errors when earlier event handlers run)
+// ============================================================
+
+function initAudio(){
+  if (audioContext) return;
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  filterNode = audioContext.createBiquadFilter();
+  filterNode.type = 'allpass'; // initially OFF — bypass
+  filterNode.frequency.value = state.filter.cutoff;
+  filterNode.Q.value = state.filter.q;
+  filterDriveNode = audioContext.createWaveShaper();
+  filterDriveNode.curve = makeDriveCurve(0);
+  gainNode = audioContext.createGain();
+  gainNode.gain.value = state.volume * state.volume;
+  // LFO
+  lfoNode = audioContext.createOscillator();
+  lfoNode.frequency.value = state.filter.lfoRate;
+  lfoGain = audioContext.createGain();
+  lfoGain.gain.value = 0;
+  lfoNode.connect(lfoGain);
+  lfoGain.connect(filterNode.frequency);
+  lfoNode.start();
+
+  // Post-processing analyser — tapped off the master gain so the visualization
+  // reflects what actually goes to the speakers (filter + drive + volume).
+  analyserNode = audioContext.createAnalyser();
+  analyserNode.fftSize = analyserBuffer.length;
+  analyserNode.smoothingTimeConstant = 0;
+
+  filterNode.connect(filterDriveNode);
+  filterDriveNode.connect(gainNode);
+  gainNode.connect(analyserNode);          // parallel tap (no effect on audio)
+  gainNode.connect(audioContext.destination);
+}
+
+function makeDriveCurve(driveDb){
+  const N = 1024;
+  const curve = new Float32Array(N);
+  const gain = Math.pow(10, driveDb / 20);
+  for (let i = 0; i < N; i++) {
+    const x = (i / (N - 1)) * 2 - 1;
+    curve[i] = Math.tanh(x * gain) / Math.tanh(Math.max(gain, 1));
+  }
+  return curve;
+}
+function updateFilterDrive(){
+  if (!filterDriveNode) return;
+  filterDriveNode.curve = makeDriveCurve(state.filter.drive);
+}
+function updateFilterNode(){
+  if (!filterNode) return;
+  const t = state.filter.type;
+  const map = { off:'allpass', lp:'lowpass', hp:'highpass', bp:'bandpass', notch:'notch' };
+  filterNode.type = map[t] || 'allpass';
+  filterNode.frequency.setTargetAtTime(state.filter.cutoff, audioContext.currentTime, 0.01);
+  filterNode.Q.setTargetAtTime(state.filter.q, audioContext.currentTime, 0.01);
+}
+function updateLFO(){
+  if (!lfoNode) return;
+  lfoNode.frequency.setTargetAtTime(state.filter.lfoRate, audioContext.currentTime, 0.01);
+  // depth in Hz around cutoff — scale to ±octave with depth
+  const depthHz = state.filter.cutoff * state.filter.lfoDepth * 0.9;
+  lfoGain.gain.setTargetAtTime(depthHz, audioContext.currentTime, 0.01);
+}
+
+function buildPlayBuffer(){
+  initAudio();
+  // Render WORKING_N samples and put in an AudioBuffer
+  const samples = renderFull(WORKING_N);
+  const buf = audioContext.createBuffer(1, samples.length, audioContext.sampleRate);
+  buf.copyToChannel(samples, 0);
+  currentBuffer = buf;
+  return buf;
+}
+
+function getPlaybackRate(){
+  // The live preview buffer is WORKING_N samples long, so its fundamental is
+  // sampleRate / WORKING_N. We scale playbackRate so the buffer plays at the
+  // user's chosen tune note — meaning the preview sounds exactly like what
+  // the exported single-cycle file will sound like when triggered at native
+  // rate on the sampler.
+  const fund = audioContext.sampleRate / WORKING_N;
+  const desired = midiToFreq(state.tuneNote);
+  return desired / fund;
+}
+
+function updatePlaybackRate(){
+  if (!sourceNode || !audioContext) return;
+  sourceNode.playbackRate.setTargetAtTime(getPlaybackRate(), audioContext.currentTime, 0.01);
+}
+
+function startSource(){
+  initAudio();
+  if (sourceNode) { try { sourceNode.stop(); } catch(e){} sourceNode.disconnect(); }
+  const buf = buildPlayBuffer();
+  sourceNode = audioContext.createBufferSource();
+  sourceNode.buffer = buf;
+  sourceNode.loop = true;
+  sourceNode.playbackRate.value = getPlaybackRate();
+  connectSourceToChain(sourceNode);
+  // gentle fade in to avoid clicks
+  gainNode.gain.cancelScheduledValues(audioContext.currentTime);
+  gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+  gainNode.gain.linearRampToValueAtTime(state.volume * state.volume, audioContext.currentTime + 0.04);
+  sourceNode.start();
+}
+
+// Routes a source either through the filter or around it.
+// When filter is OFF, we use a true bypass so neither cutoff nor Q
+// can color the sound — biquad 'allpass' is magnitude-flat but
+// still introduces phase shift / ringing at high Q.
+function connectSourceToChain(src){
+  if (state.filter.type === 'off') {
+    src.connect(filterDriveNode);
+  } else {
+    src.connect(filterNode);
+  }
+}
+
+function stopSource(){
+  if (!sourceNode || !audioContext) return;
+  gainNode.gain.cancelScheduledValues(audioContext.currentTime);
+  gainNode.gain.setValueAtTime(gainNode.gain.value, audioContext.currentTime);
+  gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.04);
+  const s = sourceNode;
+  setTimeout(() => { try { s.stop(); s.disconnect(); } catch(e){} }, 80);
+  sourceNode = null;
+}
+
+function togglePlay(){
+  initAudio();
+  if (audioContext.state === 'suspended') audioContext.resume();
+  if (state.playing) {
+    stopSource();
+    state.playing = false;
+    stopScopeAnimation();
+    drawScope();  // one final repaint to clear the dimmed-source + overlay
+  } else {
+    startSource();
+    state.playing = true;
+    startScopeAnimation();
+  }
+  document.getElementById('btn-play').classList.toggle('playing', state.playing);
+  document.getElementById('btn-play').innerHTML = state.playing
+    ? '<span style="font-size:15px">■</span> STOP'
+    : '<span style="font-size:15px">▶</span> PLAY';
+  document.getElementById('playLed').classList.toggle('active', state.playing);
+}
+
+// when parameters change while playing, refresh the buffer
+let refreshTimer = null;
+function refreshIfPlaying(){
+  if (!state.playing) return;
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(() => {
+    if (!state.playing) return;
+    // crossfade by replacing buffer with a new source
+    initAudio();
+    const samples = renderFull(WORKING_N);
+    const buf = audioContext.createBuffer(1, samples.length, audioContext.sampleRate);
+    buf.copyToChannel(samples, 0);
+    const newSrc = audioContext.createBufferSource();
+    newSrc.buffer = buf;
+    newSrc.loop = true;
+    newSrc.playbackRate.value = getPlaybackRate();
+    connectSourceToChain(newSrc);
+    newSrc.start();
+    const oldSrc = sourceNode;
+    sourceNode = newSrc;
+    setTimeout(() => { if (oldSrc) try { oldSrc.stop(); oldSrc.disconnect(); } catch(e){} }, 20);
+  }, 30);
+}
+
+// ============================================================
+// MASTER RENDER (called whenever anything changes)
+// ============================================================
+function render(){
+  lastWaveform = renderFull(WORKING_N);
+  drawScope();
+  updateInfoBar();
+  if (typeof updateWTIndicator === 'function') updateWTIndicator();
+  refreshIfPlaying();
+}
+
+function updateInfoBar(){
+  const sr = SR;
+  const len = getExportLen();
+  const cyc = state.cycles;
+  const totalSamples = len * cyc;
+  const fund = sr / len; // actual fundamental we'll achieve (after integer rounding)
+  const cents = getExportLenCents();
+  const targetName = midiToName(state.tuneNote);
+  const centsStr = Math.abs(cents) < 0.5 ? '' : ' ' + (cents >= 0 ? '+' : '') + cents.toFixed(1) + '¢';
+  const ms = (totalSamples / sr * 1000);
+  const bps = state.exportBits / 8;
+  const bytes = totalSamples * bps + 44;
+  document.getElementById('info-note').textContent = targetName + centsStr;
+  document.getElementById('info-freq').textContent = fund < 1000 ? fund.toFixed(2) + ' Hz' : (fund/1000).toFixed(3) + ' kHz';
+  document.getElementById('info-len').textContent = ms < 1000 ? ms.toFixed(1) + ' ms' : (ms/1000).toFixed(2) + ' s';
+  document.getElementById('info-samples').textContent = totalSamples;
+  document.getElementById('info-bytes').textContent = bytes < 1024 ? bytes + ' B' : (bytes/1024).toFixed(1) + ' KB';
+  // header format display
+  const fmt = document.getElementById('format-display');
+  if (fmt) fmt.textContent = '48000Hz · ' + state.exportBits + 'BIT · MONO';
+}
+
+function freqToNoteName(f){
+  if (f <= 0) return '—';
+  const midi = Math.round(69 + 12 * Math.log2(f / 440));
+  const cents = (12 * Math.log2(f / 440) + 69 - midi) * 100;
+  const name = midiToName(Math.max(0, Math.min(127, midi)));
+  const c = cents >= 0 ? '+' : '';
+  return name + ' ' + c + cents.toFixed(0) + '¢';
+}
+
+// ============================================================
+// WAV EXPORT
+// ============================================================
+function encodeWAV(samples, sampleRate, bitDepth){
+  bitDepth = bitDepth || 16;
+  const bps = bitDepth / 8; // bytes per sample
+  const len = samples.length;
+  const dataBytes = len * bps;
+  const buf = new ArrayBuffer(44 + dataBytes);
+  const v = new DataView(buf);
+  function ws(off, s){ for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); }
+  ws(0, 'RIFF');
+  v.setUint32(4, 36 + dataBytes, true);
+  ws(8, 'WAVE');
+  ws(12, 'fmt ');
+  v.setUint32(16, 16, true);            // PCM fmt chunk size
+  v.setUint16(20, 1, true);             // format: PCM
+  v.setUint16(22, 1, true);             // mono
+  v.setUint32(24, sampleRate, true);
+  v.setUint32(28, sampleRate * bps, true); // byte rate
+  v.setUint16(32, bps, true);              // block align
+  v.setUint16(34, bitDepth, true);
+  ws(36, 'data');
+  v.setUint32(40, dataBytes, true);
+  let off = 44;
+  if (bitDepth === 16) {
+    for (let i = 0; i < len; i++) {
+      let s = Math.max(-1, Math.min(1, samples[i]));
+      s = s < 0 ? s * 0x8000 : s * 0x7fff;
+      v.setInt16(off, s | 0, true);
+      off += 2;
+    }
+  } else if (bitDepth === 24) {
+    // Signed 24-bit little-endian PCM (3 bytes per sample).
+    // Range: -8388608..8388607. JS sign-extends with >>, and & 0xff
+    // truncates correctly for negatives, so the byte writes are safe.
+    for (let i = 0; i < len; i++) {
+      let s = Math.max(-1, Math.min(1, samples[i]));
+      const v24 = Math.round(s < 0 ? s * 0x800000 : s * 0x7fffff);
+      v.setUint8(off,     v24 & 0xff);
+      v.setUint8(off + 1, (v24 >> 8) & 0xff);
+      v.setUint8(off + 2, (v24 >> 16) & 0xff);
+      off += 3;
+    }
+  }
+  return new Blob([buf], { type: 'audio/wav' });
+}
+
+function makeExportFilename(){
+  const o = state.oscA, b = state.oscB;
+  let name = o.type.toUpperCase();
+  if (b.level > 0.01 && state.mix.amount > 0.01) name += '_' + state.mix.mode + '_' + b.type.toUpperCase();
+  if (state.shape.fold > 0.05) name += '_FLD';
+  if (state.shape.drive > 0.05) name += '_DRV';
+  if (state.shape.crush > 0.05) name += '_CRH';
+  name += '_' + midiToName(state.tuneNote) + '_x' + state.cycles + '_' + state.exportBits + 'b';
+  const ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+  return name + '_' + ts + '.wav';
+}
+
+async function exportWAV(){
+  // Render at the cycle length needed for the chosen target note.
+  const exportLen = getExportLen();
+  const oneCycle = renderFull(exportLen);
+  const total = exportLen * state.cycles;
+  const out = new Float32Array(total);
+  for (let c = 0; c < state.cycles; c++) {
+    out.set(oneCycle, c * exportLen);
+  }
+  const blob = encodeWAV(out, SR, state.exportBits);
+  const defaultName = makeExportFilename();
+
+  // In Tauri: native save dialog → save_wav Rust command. The <a download>
+  // path that worked in a regular browser doesn't trigger in WebKitGTK.
+  const tauri = window.__TAURI__;
+  if (tauri && tauri.dialog && tauri.core) {
+    try {
+      const path = await tauri.dialog.save({
+        defaultPath: defaultName,
+        filters: [{ name: 'WAV audio', extensions: ['wav'] }],
+        title: 'Export single-cycle WAV',
+      });
+      if (!path) return; // user cancelled the dialog
+      const bytes = Array.from(new Uint8Array(await blob.arrayBuffer()));
+      await tauri.core.invoke('save_wav', { path, bytes });
+      flashExportButton();
+    } catch (err) {
+      console.error('export failed:', err);
+      alert('Export failed: ' + (err && err.message ? err.message : err));
+    }
+    return;
+  }
+
+  // Plain-browser fallback (for testing the .html outside Tauri).
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = defaultName;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 500);
+  flashExportButton();
+}
+
+function flashExportButton(){
+  const btn = document.getElementById('btn-export');
+  btn.style.background = 'var(--phos)';
+  btn.style.color = '#000';
+  setTimeout(() => { btn.style.background = ''; btn.style.color = ''; }, 200);
+}
+
+// ============================================================
+// PRESETS
+// ============================================================
+const PRESETS = [
+  { name:'CLEAN SINE',     fn: () => Object.assign(state.oscA, {type:'sine',phase:0,level:1}) },
+  { name:'BRIGHT SAW',     fn: () => { Object.assign(state.oscA, {type:'saw',harm:128,level:1}); } },
+  { name:'WARM SAW',       fn: () => { Object.assign(state.oscA, {type:'saw',harm:24,level:1}); } },
+  { name:'HOLLOW SQR',     fn: () => { Object.assign(state.oscA, {type:'sq',harm:128,sym:0.5,level:1}); } },
+  { name:'NARROW PULSE',   fn: () => { Object.assign(state.oscA, {type:'sq',harm:128,sym:0.12,level:1}); } },
+  { name:'RING BELL',      fn: () => {
+    Object.assign(state.oscA, {type:'sine',level:1});
+    Object.assign(state.oscB, {type:'sine',level:1,ratio:3});
+    Object.assign(state.mix, {mode:'RING',amount:1});
+  }},
+  { name:'FM BASS',        fn: () => {
+    Object.assign(state.oscA, {type:'sine',level:1});
+    Object.assign(state.oscB, {type:'sine',level:1,ratio:1});
+    Object.assign(state.mix, {mode:'FM',amount:0.6});
+  }},
+  { name:'FM BRASS',       fn: () => {
+    Object.assign(state.oscA, {type:'sine',level:1});
+    Object.assign(state.oscB, {type:'sine',level:1,ratio:2});
+    Object.assign(state.mix, {mode:'FM',amount:0.85});
+  }},
+  { name:'STAIRWAY',       fn: () => Object.assign(state.oscA, {type:'stair',steps:5,level:1}) },
+  { name:'BITS & PIECES',  fn: () => {
+    Object.assign(state.oscA, {type:'saw',harm:128,level:1});
+    Object.assign(state.oscB, {type:'sq',harm:128,sym:0.5,level:1});
+    Object.assign(state.mix, {mode:'XOR',amount:0.7});
+  }},
+  { name:'WAVEFOLD',       fn: () => {
+    Object.assign(state.oscA, {type:'sine',level:1});
+    Object.assign(state.shape, {fold:0.6,drive:0,crush:0,pd:0});
+  }},
+  { name:'CRUSHED',        fn: () => {
+    Object.assign(state.oscA, {type:'tri',harm:128,sym:0.5,level:1});
+    Object.assign(state.shape, {fold:0,drive:0.2,crush:0.55,pd:0});
+  }},
+  { name:'PHASE DIST',     fn: () => {
+    Object.assign(state.oscA, {type:'sine',level:1});
+    Object.assign(state.shape, {fold:0,drive:0,crush:0,pd:0.7});
+  }},
+  { name:'GRAINY S&H',     fn: () => Object.assign(state.oscA, {type:'sh',steps:24,seed:42,level:1}) },
+  { name:'NOISE BURST',    fn: () => Object.assign(state.oscA, {type:'noise',seed:13,level:1}) },
+  { name:'SUPER SAW',      fn: () => {
+    Object.assign(state.oscA, {type:'saw',harm:128,level:1});
+    Object.assign(state.oscB, {type:'saw',harm:128,level:1,ratio:2});
+    Object.assign(state.mix, {mode:'BLEND',amount:0.5});
+  }},
+];
+
+function applyPreset(p){
+  // reset shape + mix to clean baseline first
+  Object.assign(state.shape, {fold:0,drive:0,crush:0,pd:0});
+  Object.assign(state.oscA, {type:'sine',phase:0,harm:64,sym:0.5,steps:8,seed:7,level:1});
+  Object.assign(state.oscB, {type:'sine',phase:0,harm:64,sym:0.5,steps:8,seed:7,level:0,ratio:1});
+  Object.assign(state.mix, {mode:'BLEND',amount:0});
+  p.fn();
+  syncUIFromState();
+  render();
+}
+
+function buildPresets(){
+  const host = document.getElementById('dd-factory-menu');
+  PRESETS.forEach(p => {
+    const b = document.createElement('button');
+    b.className = 'dropdown-item';
+    b.textContent = p.name;
+    b.onclick = () => {
+      applyPreset(p);
+      closeAllDropdowns();
+    };
+    host.appendChild(b);
+  });
+}
+buildPresets();
+
+// Header dropdown open/close — click toggle, click outside closes.
+function closeAllDropdowns(){
+  document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+}
+function bindDropdown(id){
+  const dd = document.getElementById(id);
+  const toggle = dd.querySelector('.dropdown-toggle');
+  toggle.addEventListener('click', e => {
+    e.stopPropagation();
+    const wasOpen = dd.classList.contains('open');
+    closeAllDropdowns();
+    if (!wasOpen) dd.classList.add('open');
+  });
+  // Clicks inside the menu shouldn't close it (except via item handlers).
+  dd.querySelector('.dropdown-menu').addEventListener('click', e => e.stopPropagation());
+}
+bindDropdown('dd-factory');
+bindDropdown('dd-user');
+document.addEventListener('click', closeAllDropdowns);
+
+// ============================================================
+// USER PRESETS — saved in localStorage, lost on uninstall.
+// Schema:  monocycle.userPresets = [{ name, savedAt, state: snapshot }, ...]
+// ============================================================
+const USER_PRESETS_KEY = 'monocycle.userPresets';
+
+function loadUserPresets(){
+  try {
+    const raw = localStorage.getItem(USER_PRESETS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+function persistUserPresets(arr){
+  try { localStorage.setItem(USER_PRESETS_KEY, JSON.stringify(arr)); }
+  catch (e) { console.error('preset save failed:', e); alert('Could not save preset: ' + e.message); }
+}
+
+function renderUserPresetsMenu(savingMode){
+  const menu = document.getElementById('dd-user-menu');
+  const presets = loadUserPresets();
+  menu.innerHTML = '';
+
+  // Top row: either the "+ SAVE" button or the inline name form.
+  if (savingMode) {
+    const form = document.createElement('div');
+    form.className = 'dropdown-save-form';
+    form.innerHTML = `
+      <input type="text" id="preset-name-input" placeholder="Preset name…" maxlength="40" />
+      <button class="ds-btn save" id="preset-save-confirm" disabled>SAVE</button>
+      <button class="ds-btn cancel" id="preset-save-cancel" title="Cancel">×</button>
+    `;
+    menu.appendChild(form);
+    const input = form.querySelector('#preset-name-input');
+    const saveBtn = form.querySelector('#preset-save-confirm');
+    const cancelBtn = form.querySelector('#preset-save-cancel');
+    input.addEventListener('input', () => { saveBtn.disabled = !input.value.trim(); });
+    input.addEventListener('keydown', e => {
+      if (e.code === 'Enter' && !saveBtn.disabled) { e.preventDefault(); saveBtn.click(); }
+      if (e.code === 'Escape') { e.preventDefault(); renderUserPresetsMenu(false); }
+    });
+    saveBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const name = input.value.trim();
+      if (!name) return;
+      const list = loadUserPresets();
+      const i = list.findIndex(p => p.name === name);
+      const entry = { name, savedAt: Date.now(), state: getCurrentSnapshot() };
+      if (i >= 0) {
+        if (!confirm(`Overwrite preset "${name}"?`)) return;
+        list[i] = entry;
+      } else {
+        list.push(entry);
+        list.sort((a, b) => a.name.localeCompare(b.name));
+      }
+      persistUserPresets(list);
+      renderUserPresetsMenu(false);
+    });
+    cancelBtn.addEventListener('click', e => { e.stopPropagation(); renderUserPresetsMenu(false); });
+    // Autofocus the input. requestAnimationFrame so the input is in the DOM.
+    requestAnimationFrame(() => input.focus());
+  } else {
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'dropdown-item';
+    saveBtn.textContent = '+ SAVE CURRENT PRESET…';
+    saveBtn.addEventListener('click', e => { e.stopPropagation(); renderUserPresetsMenu(true); });
+    menu.appendChild(saveBtn);
+  }
+
+  // Divider + list (or empty state).
+  const divider = document.createElement('div');
+  divider.className = 'dropdown-divider';
+  menu.appendChild(divider);
+
+  if (presets.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'dropdown-empty';
+    empty.textContent = 'No saved presets';
+    menu.appendChild(empty);
+  } else {
+    presets.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'dropdown-preset-row';
+      const loadBtn = document.createElement('button');
+      loadBtn.className = 'dropdown-item';
+      loadBtn.textContent = p.name;
+      loadBtn.title = 'Saved ' + new Date(p.savedAt).toLocaleString();
+      loadBtn.addEventListener('click', () => {
+        applySnapshot(p.state);
+        closeAllDropdowns();
+      });
+      const del = document.createElement('button');
+      del.className = 'dp-del';
+      del.textContent = '×';
+      del.title = 'Delete preset';
+      del.setAttribute('aria-label', 'Delete preset ' + p.name);
+      del.addEventListener('click', e => {
+        e.stopPropagation();
+        if (!confirm(`Delete preset "${p.name}"?`)) return;
+        persistUserPresets(loadUserPresets().filter(x => x.name !== p.name));
+        renderUserPresetsMenu(false);
+      });
+      row.appendChild(loadBtn);
+      row.appendChild(del);
+      menu.appendChild(row);
+    });
+  }
+}
+renderUserPresetsMenu(false);
+
+// ============================================================
+// SYNC UI from state (used after preset / reset)
+// ============================================================
+function syncUIFromState(){
+  // wave grids
+  document.querySelectorAll('#wave-grid-a .wave-btn').forEach(b => b.classList.toggle('active', b.dataset.id === state.oscA.type));
+  document.querySelectorAll('#wave-grid-b .wave-btn').forEach(b => b.classList.toggle('active', b.dataset.id === state.oscB.type));
+  // mix mode
+  document.querySelectorAll('#mix-mode-row .mode-btn').forEach(b => b.classList.toggle('active', b.textContent === state.mix.mode));
+  document.getElementById('val-mix-mode').textContent = state.mix.mode;
+
+  // sliders A
+  document.getElementById('a-phase').value = state.oscA.phase;
+  document.getElementById('val-a-phase').textContent = state.oscA.phase + '°';
+  document.getElementById('a-harm').value = state.oscA.harm;
+  document.getElementById('val-a-harm').textContent = state.oscA.harm == 128 ? '∞' : state.oscA.harm;
+  document.getElementById('a-sym').value = Math.round(state.oscA.sym * 100);
+  document.getElementById('val-a-sym').textContent = Math.round(state.oscA.sym * 100) + '%';
+  document.getElementById('a-steps').value = state.oscA.steps;
+  document.getElementById('val-a-steps').textContent = state.oscA.steps;
+  document.getElementById('a-seed').value = state.oscA.seed;
+  document.getElementById('val-a-seed').textContent = state.oscA.seed;
+  document.getElementById('a-lvl').value = Math.round(state.oscA.level * 100);
+  document.getElementById('val-a-lvl').textContent = Math.round(state.oscA.level * 100) + '%';
+
+  // sliders B
+  document.getElementById('b-phase').value = state.oscB.phase;
+  document.getElementById('val-b-phase').textContent = state.oscB.phase + '°';
+  document.getElementById('b-harm').value = state.oscB.harm;
+  document.getElementById('val-b-harm').textContent = state.oscB.harm == 128 ? '∞' : state.oscB.harm;
+  document.getElementById('b-sym').value = Math.round(state.oscB.sym * 100);
+  document.getElementById('val-b-sym').textContent = Math.round(state.oscB.sym * 100) + '%';
+  document.getElementById('b-steps').value = state.oscB.steps;
+  document.getElementById('val-b-steps').textContent = state.oscB.steps;
+  document.getElementById('b-ratio').value = state.oscB.ratio;
+  document.getElementById('val-b-ratio').textContent = '×' + state.oscB.ratio;
+  document.getElementById('b-lvl').value = Math.round(state.oscB.level * 100);
+  document.getElementById('val-b-lvl').textContent = Math.round(state.oscB.level * 100) + '%';
+
+  // mix amount
+  document.getElementById('mix-amt').value = Math.round(state.mix.amount * 100);
+  document.getElementById('val-mix-amt').textContent = Math.round(state.mix.amount * 100) + '%';
+
+  // shape
+  document.getElementById('sh-fold').value = Math.round(state.shape.fold * 100);
+  document.getElementById('val-sh-fold').textContent = Math.round(state.shape.fold * 100) + '%';
+  document.getElementById('sh-drive').value = Math.round(state.shape.drive * 100);
+  document.getElementById('val-sh-drive').textContent = Math.round(state.shape.drive * 100) + '%';
+  document.getElementById('sh-crush').value = Math.round(state.shape.crush * 100);
+  const crushVal = state.shape.crush;
+  document.getElementById('val-sh-crush').textContent = crushVal == 0 ? '16b' : Math.max(2, Math.round(16 - crushVal * 13)) + 'b';
+  document.getElementById('sh-pd').value = Math.round(state.shape.pd * 100);
+  document.getElementById('val-sh-pd').textContent = Math.round(state.shape.pd * 100) + '%';
+
+  updateSliderRelevance();
+}
+
+function resetState(){
+  Object.assign(state.oscA, {type:'sine',phase:0,harm:64,sym:0.5,steps:8,seed:7,level:1.0});
+  Object.assign(state.oscB, {type:'sine',phase:0,harm:64,sym:0.5,steps:8,seed:7,level:0.0,ratio:1});
+  Object.assign(state.mix, {mode:'BLEND',amount:0});
+  Object.assign(state.shape, {fold:0,drive:0,crush:0,pd:0});
+  state.norm = true;
+  state.tuneNote = 36;
+  state.cycles = 1;
+  state.exportBits = 16;
+  document.getElementById('norm-on').classList.add('active');
+  document.getElementById('norm-off').classList.remove('active');
+  document.getElementById('val-norm').textContent = 'ON';
+  setTuneNote(state.tuneNote);
+  document.querySelectorAll('#cycles-group .option-btn').forEach(x => x.classList.toggle('active', parseInt(x.dataset.cyc) === state.cycles));
+  document.querySelectorAll('#bits-group .option-btn').forEach(x => x.classList.toggle('active', parseInt(x.dataset.bits) === state.exportBits));
+  // wavetable back to sine
+  for (let i = 0; i < state.wavetable.length; i++) state.wavetable[i] = Math.sin(i / state.wavetable.length * 2 * Math.PI);
+  drawWT();
+  syncUIFromState();
+  render();
+}
+
+// ============================================================
+// STATE SNAPSHOT (for user presets)
+// ============================================================
+// Capture/restore the *entire* serializable state so a saved preset reproduces
+// the audio identically. syncUIFromState only covers osc/mix/shape — these
+// helpers also handle filter, norm, tune, cycles, bits, volume, wavetable, and
+// re-push to the audio nodes after restore.
+
+function getCurrentSnapshot(){
+  return {
+    oscA: {...state.oscA},
+    oscB: {...state.oscB},
+    mix: {...state.mix},
+    shape: {...state.shape},
+    filter: {...state.filter},
+    norm: state.norm,
+    tuneNote: state.tuneNote,
+    exportBits: state.exportBits,
+    cycles: state.cycles,
+    volume: state.volume,
+    wavetable: Array.from(state.wavetable),
+  };
+}
+
+function applySnapshot(snap){
+  if (!snap) return;
+  // 1. State
+  Object.assign(state.oscA, snap.oscA);
+  Object.assign(state.oscB, snap.oscB);
+  Object.assign(state.mix, snap.mix);
+  Object.assign(state.shape, snap.shape);
+  Object.assign(state.filter, snap.filter);
+  state.norm = !!snap.norm;
+  state.exportBits = snap.exportBits;
+  state.cycles = snap.cycles;
+  state.volume = snap.volume;
+  if (snap.wavetable && snap.wavetable.length === state.wavetable.length) {
+    state.wavetable.set(snap.wavetable);
+  }
+
+  // 2. OSC + mix + shape UI (uses existing helper)
+  syncUIFromState();
+
+  // 3. Filter UI — cutoff slider is log-scaled, invert hz back to 0..1000.
+  const fInv = (hz) => 1000 * Math.log(hz / 20) / Math.log(1000);
+  document.getElementById('filt-cutoff').value = Math.round(fInv(state.filter.cutoff));
+  const hz = state.filter.cutoff;
+  document.getElementById('val-cutoff').textContent =
+    hz < 1000 ? Math.round(hz) + ' Hz' : (hz/1000).toFixed(2) + ' kHz';
+  document.getElementById('filt-q').value = state.filter.q;
+  document.getElementById('val-q').textContent = state.filter.q.toFixed(1);
+  document.getElementById('filt-lforate').value = state.filter.lfoRate;
+  document.getElementById('val-lforate').textContent = state.filter.lfoRate.toFixed(2) + ' Hz';
+  document.getElementById('filt-lfodepth').value = Math.round(state.filter.lfoDepth * 100);
+  document.getElementById('val-lfodepth').textContent = Math.round(state.filter.lfoDepth * 100) + '%';
+  document.getElementById('filt-drive').value = state.filter.drive;
+  document.getElementById('val-filt-drive').textContent = state.filter.drive.toFixed(1) + ' dB';
+  document.querySelectorAll('#filter-type-row .mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.ft === state.filter.type);
+  });
+  document.getElementById('val-filt-type').textContent = state.filter.type.toUpperCase();
+
+  // 4. Norm toggle
+  document.getElementById('norm-on').classList.toggle('active', state.norm);
+  document.getElementById('norm-off').classList.toggle('active', !state.norm);
+  document.getElementById('val-norm').textContent = state.norm ? 'ON' : 'OFF';
+
+  // 5. Cycles / bits option groups
+  document.querySelectorAll('#cycles-group .option-btn').forEach(x =>
+    x.classList.toggle('active', parseInt(x.dataset.cyc) === state.cycles));
+  document.querySelectorAll('#bits-group .option-btn').forEach(x =>
+    x.classList.toggle('active', parseInt(x.dataset.bits) === state.exportBits));
+
+  // 6. Volume slider + readout
+  document.getElementById('volume').value = Math.round(state.volume * 100);
+  const db = state.volume <= 0.001 ? -Infinity : 20 * Math.log10(state.volume);
+  document.getElementById('val-vol').textContent =
+    db === -Infinity ? '−∞dB' : (db >= 0 ? '+' : '') + db.toFixed(0) + 'dB';
+
+  // 7. Tune note (function handles state + UI + audio playback rate + ticks).
+  setTuneNote(snap.tuneNote);
+
+  // 8. Push to audio nodes (if audio was initialized — i.e. user has played).
+  if (audioContext) {
+    updateFilterNode();
+    updateLFO();
+    updateFilterDrive();
+    if (sourceNode) {
+      try { sourceNode.disconnect(); } catch(e){}
+      connectSourceToChain(sourceNode);
+    }
+    if (gainNode) {
+      gainNode.gain.setTargetAtTime(state.volume * state.volume, audioContext.currentTime, 0.02);
+    }
+  }
+
+  drawWT();
+  render();
+}
+
+// ============================================================
+// WAVETABLE MODAL
+// ============================================================
+const wtModal = document.getElementById('wt-modal');
+const wtOpenBtn = document.getElementById('btn-wt-open');
+
+function openWTModal(){
+  wtModal.classList.add('open');
+  // Canvases need a layout pass before sizing — give the modal one tick.
+  requestAnimationFrame(() => { resizeWT(); drawWT(); });
+}
+function closeWTModal(){
+  wtModal.classList.remove('open');
+}
+wtOpenBtn.addEventListener('click', openWTModal);
+document.getElementById('wt-modal-close').addEventListener('click', closeWTModal);
+// Click on backdrop (overlay area outside panel) closes
+wtModal.addEventListener('click', e => {
+  if (e.target === wtModal) closeWTModal();
+});
+
+// Indicator: highlight the header button when either OSC is using the wavetable
+function updateWTIndicator(){
+  const inUse = state.oscA.type === 'wt' || (state.oscB.type === 'wt' && state.oscB.level > 0.001);
+  wtOpenBtn.classList.toggle('in-use', inUse);
+}
+
+// ============================================================
+// ABOUT MODAL
+// ============================================================
+const aboutModal = document.getElementById('about-modal');
+function openAboutModal(){ aboutModal.classList.add('open'); }
+function closeAboutModal(){ aboutModal.classList.remove('open'); }
+document.getElementById('btn-about').addEventListener('click', openAboutModal);
+document.getElementById('about-modal-close').addEventListener('click', closeAboutModal);
+aboutModal.addEventListener('click', e => { if (e.target === aboutModal) closeAboutModal(); });
+
+// Route external links (.about-link) through the OS browser via Tauri's opener
+// plugin. Falls back to window.open for plain-browser testing.
+function openExternal(url){
+  const opener = window.__TAURI__ && window.__TAURI__.opener;
+  if (opener && typeof opener.openUrl === 'function') opener.openUrl(url);
+  else window.open(url, '_blank');
+}
+document.querySelectorAll('.about-link').forEach(el => {
+  el.addEventListener('click', e => {
+    e.preventDefault();
+    openExternal(e.currentTarget.href);
+  });
+});
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+  if (e.code === 'Escape') {
+    if (wtModal.classList.contains('open')) {
+      e.preventDefault();
+      closeWTModal();
+    } else if (aboutModal.classList.contains('open')) {
+      e.preventDefault();
+      closeAboutModal();
+    } else if (document.querySelector('.dropdown.open')) {
+      e.preventDefault();
+      closeAllDropdowns();
+    }
+  } else if (e.code === 'Space') {
+    e.preventDefault();
+    togglePlay();
+  } else if (e.code === 'KeyE' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    exportWAV();
+  } else if (e.code === 'KeyR' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    resetState();
+  } else if (e.code === 'KeyW' && !(e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    if (wtModal.classList.contains('open')) closeWTModal();
+    else openWTModal();
+  }
+});
+
+// ============================================================
+// INIT
+// ============================================================
+function init(){
+  resizeScope();
+  resizeWT();
+  updateSliderRelevance();
+  syncUIFromState();
+  setTuneNote(state.tuneNote);
+  drawWT();
+  render();
+}
+init();
+</script>
+</body>
+</html>

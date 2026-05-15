@@ -1,0 +1,56 @@
+# ----------------------------------------------------------------------
+# MonoCycle — root .gitignore
+#
+# Per-subproject ignores live in their own .gitignore files:
+#   desktop/.gitignore           — Node, Vite, dist, editor cruft
+#   desktop/src-tauri/.gitignore — Rust target/, Tauri gen/schemas/
+#
+# This file covers patterns that can appear ANYWHERE in the repo.
+# ----------------------------------------------------------------------
+
+# OS junk
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+.netrwhist
+*.bak
+*.orig
+
+# Environment / secrets — never commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Node — belt-and-suspenders in case a tool drops these at the root
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Build artifacts — same idea
+dist/
+build/
+out/
+
+# Tauri release bundles (the actual installers/AppImages we ship)
+# Lives at desktop/src-tauri/target/release/bundle/ — covered by src-tauri ignore,
+# but pin it here too in case anyone moves things.
+**/bundle/
+
+# Local Claude / agent state (not part of the project)
+.claude/
+CLAUDE.md
