@@ -1,4 +1,6 @@
-# MonoCycle
+<p align="center">
+  <img src="assets/banner.svg" alt="MonoCycle — single-cycle waveform designer for hardware samplers" width="100%"/>
+</p>
 
 **A single-cycle waveform designer for hardware samplers.** Build precise, perfectly-tuned single-cycle WAVs in a focused workbench, then drop them onto your Roland SP-404mkII, Elektron Digitakt, or any sampler that handles short loops — and your sampler is suddenly a synthesizer.
 
