@@ -328,16 +328,24 @@ input[type=range]:disabled{opacity:0.4}
   text-shadow:0 0 6px var(--phos-glow);
 }
 .about-notice{
-  font-size:10px;color:var(--text-dim);
+  font-size:11px;color:var(--text-dim);
   line-height:1.55;text-align:center;
   padding:8px 4px 2px;letter-spacing:0.03em;
 }
 .about-notice strong{color:var(--text);letter-spacing:0.08em}
-.about-notice .about-link{
+.about-star{
+  font-size:11px;color:var(--text-dim);
+  line-height:1.5;text-align:center;
+  margin-top:-6px;letter-spacing:0.03em;
+}
+.about-notice .about-link,
+.about-star .about-link{
   color:var(--phos);text-decoration:none;
   border-bottom:1px dotted var(--phos-dim);
+  white-space:nowrap;
 }
-.about-notice .about-link:hover{
+.about-notice .about-link:hover,
+.about-star .about-link:hover{
   text-shadow:0 0 6px var(--phos-glow);
   border-bottom-color:var(--phos);
 }
@@ -936,6 +944,9 @@ select:hover{border-color:var(--border-lit)}
         <a class="about-repo about-link" href="https://github.com/AOShei/MonoCycle">
           github.com/AOShei/MonoCycle ↗
         </a>
+        <div class="about-star">
+          If MonoCycle helps you make something, a <a class="about-link" href="https://github.com/AOShei/MonoCycle">★ on GitHub</a> helps it reach others.
+        </div>
       </div>
     </div>
   </div>
